@@ -1,0 +1,1787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ELINT Tactical Training Simulator</title>
+    <style>
+        :root {
+            --bg-color: #0a0a0c;
+            --panel-color: #1a1b1e;
+            --accent-green: #00ff41;
+            --accent-blue: #00d2ff;
+            --accent-red: #ff3e3e;
+            --accent-orange: #ff9d00;
+            --text-color: #e0e0e0;
+            --border-color: #333;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Courier New', Courier, monospace;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Bar */
+        #top-bar {
+            height: 60px;
+            background-color: var(--panel-color);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 20px;
+            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Flight Controls UI */
+        .flight-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            background: #111;
+            padding: 5px 15px;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+
+        .heading-ctrl {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dial-container {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 2px solid var(--accent-blue);
+            background: #000;
+            position: relative;
+            cursor: pointer;
+            box-shadow: inset 0 0 8px rgba(0,0,0,1);
+        }
+
+        .dial-pointer {
+            width: 2px;
+            height: 50%;
+            background: var(--accent-green);
+            position: absolute;
+            bottom: 50%;
+            left: calc(50% - 1px);
+            transform-origin: bottom center;
+            transform: rotate(0deg);
+            pointer-events: none;
+            box-shadow: 0 0 4px var(--accent-green);
+        }
+
+        .hdg-input {
+            width: 45px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+            padding: 4px;
+        }
+
+        .slider-ctrl {
+            display: flex;
+            flex-direction: column;
+            font-size: 10px;
+            color: var(--accent-blue);
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+
+        .slider-ctrl input[type="range"] {
+            width: 90px;
+            height: 4px;
+            margin-top: 4px;
+        }
+
+        input[type="range"] {
+            accent-color: var(--accent-green);
+            cursor: pointer;
+        }
+
+        button {
+            background: #222;
+            color: var(--accent-green);
+            border: 1px solid var(--accent-green);
+            padding: 6px 15px;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--accent-green);
+            color: #000;
+            box-shadow: 0 0 8px rgba(0, 255, 65, 0.4);
+        }
+
+        button:disabled {
+            border-color: #555;
+            color: #555;
+            cursor: not-allowed;
+        }
+
+        button.active {
+            background: var(--accent-blue);
+            color: #000;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 8px rgba(0, 210, 255, 0.4);
+        }
+
+        button.danger {
+            color: var(--accent-red);
+            border-color: var(--accent-red);
+        }
+        button.danger:hover {
+            background: var(--accent-red);
+            color: #fff;
+            box-shadow: 0 0 8px rgba(255, 62, 62, 0.4);
+        }
+
+        /* Main Display Area */
+        #main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            min-height: 0; /* FIX: Allows flexbox to shrink properly */
+            overflow: hidden; /* FIX: Prevents container from stretching page */
+        }
+
+        #tacplot-container {
+            flex: 1;
+            background: radial-gradient(circle at center, #111 0%, #050505 100%);
+            position: relative;
+            overflow: hidden;
+            min-height: 0; /* FIX: Allows flexbox to shrink properly */
+        }
+
+        #tacplot-container.aop-active {
+            cursor: crosshair;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* Resizer Handle */
+        #resizer {
+            height: 6px;
+            background-color: var(--border-color);
+            cursor: ns-resize;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 15;
+            transition: background-color 0.2s;
+            touch-action: none; /* Prevent mobile scrolling while dragging */
+        }
+        
+        #resizer:hover, #resizer.active {
+            background-color: var(--accent-blue);
+        }
+        
+        #resizer::before {
+            content: "";
+            width: 40px;
+            height: 2px;
+            background-color: #555;
+            box-shadow: 0 -3px 0 #555, 0 3px 0 #555;
+            border-radius: 2px;
+            transition: background-color 0.2s, box-shadow 0.2s;
+        }
+
+        #resizer:hover::before, #resizer.active::before {
+            background-color: #000;
+            box-shadow: 0 -3px 0 #000, 0 3px 0 #000;
+        }
+
+        /* ESM Panel */
+        #esm-panel {
+            height: 250px;
+            flex-shrink: 0;
+            box-sizing: border-box;
+            background-color: var(--panel-color);
+            border-top: 2px solid var(--accent-blue);
+            overflow-y: auto;
+            padding: 10px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        th {
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--accent-blue);
+            padding: 8px;
+            position: sticky;
+            top: 0;
+            background: var(--panel-color);
+            z-index: 2;
+        }
+
+        td {
+            padding: 8px;
+            border-bottom: 1px solid #222;
+        }
+
+        .status-unid { color: #888; font-style: italic; }
+        .status-id { color: var(--accent-green); font-weight: bold; text-shadow: 0 0 5px rgba(0,255,65,0.3); }
+
+        /* Modal / Oscilloscope */
+        #modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.92);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(3px);
+        }
+
+        /* Export Modal */
+        #export-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(2px);
+        }
+
+        .export-content {
+            background: var(--panel-color);
+            border: 1px solid var(--accent-blue);
+            padding: 20px;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 300px;
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.2);
+        }
+
+        #analyzer-view {
+            width: 95%;
+            max-width: 1200px;
+            height: 90vh;
+            background: var(--panel-color);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.1);
+            padding: 20px;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .scope-container {
+            background: #000;
+            border: 1px solid #333;
+            margin: 10px 0;
+            position: relative;
+            cursor: crosshair;
+            height: 250px;
+            flex-shrink: 0;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        .analyzer-main-grid {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 20px;
+            flex: 1;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .library-section {
+            border: 1px solid #333;
+            padding: 10px;
+            overflow-y: auto;
+            background: #0d0d0f;
+        }
+
+        .library-table {
+            width: 100%;
+            font-size: 11px;
+        }
+
+        .library-table th {
+            position: sticky;
+            top: 0;
+            background: #0d0d0f;
+            z-index: 1;
+        }
+        
+        .library-table tr {
+            cursor: pointer;
+            transition: background 0.1s ease;
+        }
+        
+        .library-table tr:hover {
+            background: rgba(0, 210, 255, 0.15);
+        }
+
+        .controls-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 15px;
+            border: 1px solid #333;
+            background: #111;
+        }
+
+        .input-box {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .input-box label {
+            font-size: 10px;
+            color: var(--accent-blue);
+            letter-spacing: 0.5px;
+        }
+
+        .freq-readout {
+            font-size: 18px;
+            color: var(--accent-green);
+            background: #000;
+            padding: 5px 10px;
+            border: 1px solid #333;
+            font-weight: bold;
+            display: inline-block;
+            text-shadow: 0 0 5px rgba(0,255,65,0.5);
+        }
+
+        select, input[type="number"] {
+            background: #000;
+            color: var(--accent-green);
+            border: 1px solid #444;
+            padding: 8px;
+            font-family: inherit;
+            outline: none;
+        }
+        
+        select:focus, input[type="number"]:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .status-feedback {
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 12px;
+            border: 1px solid transparent;
+            min-height: 18px; 
+        }
+
+        /* Tooltip / Context Menu */
+        #context-menu {
+            display: none;
+            position: absolute;
+            background: var(--panel-color);
+            border: 1px solid var(--accent-blue);
+            z-index: 50;
+            padding: 5px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.8);
+        }
+
+        .menu-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #ddd;
+        }
+
+        .menu-item:hover {
+            background: var(--accent-blue);
+            color: #000;
+            font-weight: bold;
+        }
+
+        .hud-overlay {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            pointer-events: none;
+            text-align: right;
+            color: var(--accent-green);
+            font-size: 14px;
+            text-shadow: 0 0 4px #000;
+            background: rgba(0,0,0,0.4);
+            padding: 10px;
+            border: 1px solid #333;
+        }
+
+        .scope-status {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            color: var(--accent-green);
+            font-size: 10px;
+            pointer-events: none;
+            background: rgba(0,0,0,0.7);
+            padding: 4px 8px;
+            border: 1px solid #333;
+        }
+
+        /* Highlight animation for ESM table rows */
+        @keyframes pulse-row {
+            0% { background-color: var(--panel-color); }
+            50% { background-color: rgba(0, 210, 255, 0.4); }
+            100% { background-color: var(--panel-color); }
+        }
+        .highlight-row {
+            animation: pulse-row 1.5s ease;
+        }
+
+        /* Toast Notifications */
+        #toast-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: rgba(0,0,0,0.8);
+            border: 1px solid var(--accent-orange);
+            color: var(--accent-orange);
+            padding: 8px 16px;
+            font-size: 12px;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="top-bar">
+        <div class="control-group flight-controls">
+            <div class="heading-ctrl" title="Click and drag to set heading">
+                <div class="dial-container" id="hdg-dial">
+                    <div class="dial-pointer" id="hdg-pointer"></div>
+                </div>
+                <input type="number" id="hdg-input" class="hdg-input" value="000">
+            </div>
+            <div style="width: 1px; height: 30px; background: #333;"></div>
+            <div class="slider-ctrl">
+                <label>SPD: <span id="spd-val">400</span> KT</label>
+                <input type="range" id="spd-slider" min="200" max="800" step="10" value="400">
+            </div>
+            <div class="slider-ctrl">
+                <label>ALT: <span id="alt-val">32000</span> FT</label>
+                <input type="range" id="alt-slider" min="500" max="40000" step="500" value="32000">
+            </div>
+        </div>
+        <div class="control-group" style="margin-left: 10px;">
+            <button id="btn-export">Export Grading Data</button>
+            <button id="btn-aop-mode" title="Toggle AOP Building">BUILD AOP</button>
+            <button id="btn-confirm-aop" style="display: none;">CONFIRM AOP (0/3)</button>
+        </div>
+        <div style="flex-grow: 1; text-align: right; font-weight: bold; color: var(--accent-blue); letter-spacing: 1px;">
+            ELINT OPS CENTER // SIMULATOR ACTIVE
+        </div>
+    </div>
+
+    <div id="main-container">
+        <div id="tacplot-container">
+            <canvas id="tacplot"></canvas>
+            <div class="hud-overlay">
+                LAT: <span id="hud-lat">25.122 N</span><br>
+                LON: <span id="hud-lon">121.560 E</span><br>
+                ALT: <span id="hud-alt">32,000 FT</span>
+            </div>
+            <div id="toast-container"></div>
+        </div>
+
+        <!-- Draggable Resizer -->
+        <div id="resizer" title="Drag to resize"></div>
+
+        <div id="esm-panel">
+            <table>
+                <thead>
+                    <tr>
+                        <th width="5%">ID</th>
+                        <th width="5%">LOB</th>
+                        <th width="20%">EMITTER NAME</th>
+                        <th width="10%">BEARING</th>
+                        <th width="15%">FREQ (GHz)</th>
+                        <th width="15%">PRI (µs)</th>
+                        <th width="15%">PW (µs)</th>
+                        <th width="15%">ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody id="esm-body">
+                    <!-- Dynamic Content -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Analyzer Modal -->
+    <div id="modal-overlay">
+        <div id="analyzer-view">
+            <h2 style="color: var(--accent-green); margin: 0 0 10px 0; display: flex; justify-content: space-between; font-size: 16px; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px;">
+                <div style="letter-spacing: 1px;">SIGNAL ANALYZER - PARAMETER EXTRACTION</div>
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <span style="font-size: 12px; color: var(--accent-blue);">INTERCEPTED FREQ: <span id="detected-freq-display" class="freq-readout">0.000 GHz</span></span>
+                    <span id="measure-status" style="font-size: 12px; color: var(--accent-blue); background: #111; padding: 4px 8px; border: 1px solid #333;">MODE: LIVE</span>
+                </div>
+            </h2>
+            
+            <div class="scope-container">
+                <div class="scope-status" id="scope-overlay">SCALE: 0.2px / µs | ZOOM: 1.0x</div>
+                <canvas id="scope" height="250" width="1150"></canvas>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 5px;">
+                <button id="btn-freeze">FREEZE FEED</button>
+                <button id="btn-zoom">ZOOM (50x)</button>
+                <div style="width: 2px; background: #333; margin: 0 5px;"></div>
+                <button id="btn-measure-pri">MEASURE PRI</button>
+                <button id="btn-measure-pw">MEASURE PW</button>
+                <button id="btn-clear-measure" style="border-color: #555; color: #aaa; margin-left: auto;">CLEAR CURSORS</button>
+            </div>
+
+            <div class="analyzer-main-grid">
+                <div class="library-section">
+                    <h3 style="color: var(--accent-blue); font-size: 12px; margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 5px;">KNOWN EMITTER PROFILES</h3>
+                    <table class="library-table">
+                        <thead>
+                            <tr>
+                                <th>Emitter Type</th>
+                                <th>Freq (GHz)</th>
+                                <th>PRI (µs)</th>
+                                <th>PW (µs)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="library-body">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="controls-section">
+                    <h3 style="color: var(--accent-blue); font-size: 12px; margin: 0 0 10px 0;">MEASUREMENT SUBMISSION</h3>
+                    
+                    <div class="input-box">
+                        <label>PRI MEASUREMENT (µs)</label>
+                        <input type="number" id="measure-pri" step="0.1" placeholder="0.0">
+                    </div>
+                    <div class="input-box">
+                        <label>PW MEASUREMENT (µs)</label>
+                        <input type="number" id="measure-pw" step="0.01" placeholder="0.00">
+                    </div>
+
+                    <div class="input-box" style="margin-top: 5px; border-top: 1px solid #333; padding-top: 15px;">
+                        <label>SELECT RADAR IDENTITY</label>
+                        <select id="emitter-select">
+                            <option value="">-- CLASSIFY EMITTER --</option>
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+
+                    <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
+                        <div id="feedback-panel" class="status-feedback">AWAITING INPUT...</div>
+                        <button id="btn-submit-measurement" style="padding: 12px; font-size: 13px;">SUBMIT CLASSIFICATION</button>
+                        <button id="btn-close-analyzer" class="danger">ABORT ANALYSIS</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Student Info Modal -->
+    <div id="export-modal">
+        <div class="export-content">
+            <h3 style="color: var(--accent-blue); margin-top: 0; text-align: center; font-size: 14px; letter-spacing: 1px;">EXPORT GRADING DATA</h3>
+            <div class="input-box">
+                <label>STUDENT NAME / IDENTIFIER</label>
+                <input type="text" id="student-name-input" placeholder="e.g., John Doe" style="padding: 10px; font-size: 14px;">
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button id="btn-confirm-export" style="flex: 1;">DOWNLOAD</button>
+                <button id="btn-cancel-export" class="danger" style="flex: 1;">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="context-menu">
+        <div class="menu-item" data-class="PLAN Type 055">Class: PLAN Type 055</div>
+        <div class="menu-item" data-class="PLAN Type 052D">Class: PLAN Type 052D</div>
+        <div class="menu-item" data-class="PLAN Type 054A">Class: PLAN Type 054A</div>
+        <div class="menu-item" data-class="VMF Sovremenny">Class: VMF Sovremenny</div>
+        <div class="menu-item" data-class="Coastal Defense">Class: Coastal Defense</div>
+        <div class="menu-item" data-class="USN Arleigh Burke">Class: USN Arleigh Burke</div>
+        <div class="menu-item" data-class="USN Carrier">Class: USN Carrier</div>
+        <div class="menu-item" data-class="Airborne (AWACS/AEW)">Class: Airborne (AWACS/AEW)</div>
+        <div class="menu-item" data-class="Airborne (Fighter)">Class: Airborne (Fighter)</div>
+        <div class="menu-item" data-class="Commercial Vessel">Class: Commercial</div>
+    </div>
+
+    <script>
+        // Encapsulate everything in an IIFE to prevent global namespace pollution
+        (() => {
+            // --- CONSTANTS & DATA DICTIONARY ---
+            const RADAR_PROFILES = {
+                // UHF/L-Band Group
+                "AN/APS-145 (AEW)": { freq: 0.420, pri: 3500, pw: 15.0 },
+                "AN/SPS-49": { freq: 0.850, pri: 1000, pw: 12.0 },
+                "Type 517M Search": { freq: 1.300, pri: 4500, pw: 20.0 },
+                "MR-710 Top Steer": { freq: 1.300, pri: 2000, pw: 3.0 },
+
+                // S-Band Group
+                "AN/SPY-1D": { freq: 3.300, pri: 800, pw: 3.0 },
+                "AN/SPY-6(V)1": { freq: 3.300, pri: 750, pw: 2.5 },
+                "AN/APY-1 (AWACS)": { freq: 3.100, pri: 4000, pw: 10.0 },
+                "AN/APY-2 (AWACS)": { freq: 3.150, pri: 4200, pw: 9.0 },
+                "KJ-2000 Main": { freq: 3.100, pri: 3800, pw: 8.0 },
+                "Type 346 Dragon Eye": { freq: 3.200, pri: 1000, pw: 2.0 },
+                "Type 346B Search": { freq: 3.200, pri: 1200, pw: 1.5 },
+                "Type 382 Top Knot": { freq: 2.900, pri: 1350, pw: 2.0 },
+                "Top Plate SGR-200": { freq: 2.900, pri: 1500, pw: 1.2 },
+                "Raymarine Pathfinder": { freq: 3.050, pri: 1000, pw: 0.3 },
+
+                // C/G-Band Group
+                "AN/SPS-67": { freq: 5.600, pri: 650, pw: 1.5 },
+                "Type 364 Seagull C": { freq: 5.600, pri: 750, pw: 1.0 },
+                "Type 364 Mod 1": { freq: 5.600, pri: 900, pw: 0.9 },
+                "Type 381 Rice Shield": { freq: 5.400, pri: 1100, pw: 1.8 },
+
+                // X-Band Group
+                "AN/APG-79": { freq: 9.800, pri: 400, pw: 0.5 },
+                "AN/APG-81": { freq: 9.800, pri: 350, pw: 0.4 },
+                "AN/SPS-73": { freq: 9.400, pri: 900, pw: 0.1 },
+                "Type 366 Band Stand": { freq: 9.400, pri: 600, pw: 0.8 },
+                "Type 366 Mod 2": { freq: 9.400, pri: 800, pw: 0.6 },
+                "Type 344 Fire Control": { freq: 9.200, pri: 250, pw: 0.3 },
+                "Type 1475": { freq: 9.700, pri: 380, pw: 0.4 },
+                "N011M Bars": { freq: 9.600, pri: 450, pw: 0.7 },
+                "Irbis-E": { freq: 9.600, pri: 420, pw: 0.6 },
+                "Tombstone Flap Lid": { freq: 10.100, pri: 200, pw: 0.5 },
+                "Furuno FAR-2218": { freq: 9.410, pri: 600, pw: 0.08 },
+                "HALO-6 Navigation": { freq: 9.410, pri: 500, pw: 0.12 },
+                "JRC JMA-9122": { freq: 9.410, pri: 550, pw: 0.1 },
+                "Garmin Cyclone": { freq: 9.410, pri: 480, pw: 0.09 }
+            };
+
+            const SCENARIO_ENTITIES = [
+                { id: 'E1', name: 'PLAN Type 055', x: 150, y: 250, alt: 100, radars: ["Type 346B Search", "Type 364 Mod 1", "Type 366 Mod 2"] },
+                { id: 'E2', name: 'PLAN Type 052D', x: 200, y: 150, alt: 80, radars: ["Type 346 Dragon Eye", "Type 364 Seagull C", "Type 366 Band Stand"] },
+                { id: 'E3', name: 'PLAN Type 054A', x: 250, y: 350, alt: 70, radars: ["Type 382 Top Knot", "Type 366 Band Stand", "Type 344 Fire Control"] },
+                { id: 'E4', name: 'VMF Sovremenny', x: 100, y: 450, alt: 60, radars: ["MR-710 Top Steer", "Type 366 Mod 2"] },
+                { id: 'E5', name: 'Freighter A', x: 400, y: 250, alt: 50, radars: ["Furuno FAR-2218", "Raymarine Pathfinder"] },
+                { id: 'E6', name: 'Fishing Boat', x: 500, y: 500, alt: 20, radars: ["HALO-6 Navigation"] },
+                { id: 'E7', name: 'Coastal Defense Site', x: 50, y: 200, alt: 150, radars: ["Type 517M Search", "Tombstone Flap Lid"] },
+                { id: 'E8', name: 'USN Arleigh Burke', x: 850, y: 650, alt: 80, radars: ["AN/SPY-1D", "AN/SPS-67", "AN/SPS-73"] },
+                { id: 'E9', name: 'USN Carrier', x: 950, y: 600, alt: 150, radars: ["AN/SPY-6(V)1", "AN/SPS-49", "AN/SPS-73"] },
+                { id: 'E10', name: 'E-3 Sentry (AWACS)', x: 800, y: 400, alt: 30000, radars: ["AN/APY-1 (AWACS)"] },
+                { id: 'E11', name: 'E-2C Hawkeye', x: 750, y: 800, alt: 25000, radars: ["AN/APS-145 (AEW)"] },
+                { id: 'E12', name: 'F/A-18 CAP', x: 650, y: 500, alt: 22000, radars: ["AN/APG-79"] },
+                { id: 'E13', name: 'J-20 CAP', x: 300, y: 200, alt: 28000, radars: ["Type 1475"] },
+                { id: 'E14', name: 'Cruise Liner', x: 450, y: 750, alt: 120, radars: ["JRC JMA-9122", "Garmin Cyclone"] }
+            ];
+
+            // --- APP STATE ---
+            const state = {
+                ownship: { x: 700, y: 600, heading: 0, speed: 0.1, speedKnots: 400, altitude: 32000 },
+                interceptCounter: 1,
+                activeIntercepts: [],
+                userMeasurements: {},
+                droppedLOBs: [],
+                aops: [],
+                aopBuildingMode: false,
+                selectedLOBs: [], // for AOP generation
+                selectedAopIndex: null,
+                currentAnalysisRadar: null,
+                esmListHash: "",
+                autoIdentifyUnlocked: false,
+                isResizing: false,
+                
+                // Scope State
+                scope: {
+                    isFrozen: false,
+                    zoom: 1.0,
+                    measurementMode: null,
+                    clicks: [],
+                    offset: 0,
+                    basePixelScale: 0.2,
+                    mouseX: 0
+                },
+
+                gameAnimId: null,
+                scopeAnimId: null
+            };
+
+            // --- DOM ELEMENTS ---
+            const els = {};
+
+            // --- INITIALIZATION ---
+            document.addEventListener('DOMContentLoaded', () => {
+                els.tacCanvas = document.getElementById('tacplot');
+                els.tacCtx = els.tacCanvas.getContext('2d');
+                els.scopeCanvas = document.getElementById('scope');
+                els.scopeCtx = els.scopeCanvas.getContext('2d');
+                els.tacContainer = document.getElementById('tacplot-container');
+                
+                els.esmPanel = document.getElementById('esm-panel');
+                els.resizer = document.getElementById('resizer');
+                els.esmBody = document.getElementById('esm-body');
+                
+                // Flight Controls
+                els.hdgDial = document.getElementById('hdg-dial');
+                els.hdgPointer = document.getElementById('hdg-pointer');
+                els.hdgInput = document.getElementById('hdg-input');
+                els.spdSlider = document.getElementById('spd-slider');
+                els.altSlider = document.getElementById('alt-slider');
+                
+                els.modal = document.getElementById('modal-overlay');
+                
+                els.btnExport = document.getElementById('btn-export');
+                els.btnAopMode = document.getElementById('btn-aop-mode');
+                els.btnConfirmAop = document.getElementById('btn-confirm-aop');
+                els.btnCloseAnalyzer = document.getElementById('btn-close-analyzer');
+                els.btnSubmit = document.getElementById('btn-submit-measurement');
+                
+                els.scopeBtnFreeze = document.getElementById('btn-freeze');
+                els.scopeBtnZoom = document.getElementById('btn-zoom');
+                els.scopeBtnPri = document.getElementById('btn-measure-pri');
+                els.scopeBtnPw = document.getElementById('btn-measure-pw');
+                els.scopeBtnClear = document.getElementById('btn-clear-measure');
+                
+                els.inputPri = document.getElementById('measure-pri');
+                els.inputPw = document.getElementById('measure-pw');
+                els.emitterSelect = document.getElementById('emitter-select');
+                els.feedbackPanel = document.getElementById('feedback-panel');
+                els.freqDisplay = document.getElementById('detected-freq-display');
+                els.libraryBody = document.getElementById('library-body');
+                
+                els.contextMenu = document.getElementById('context-menu');
+                els.toastContainer = document.getElementById('toast-container');
+
+                // Export Modal Elements
+                els.exportModal = document.getElementById('export-modal');
+                els.studentNameInput = document.getElementById('student-name-input');
+                els.btnConfirmExport = document.getElementById('btn-confirm-export');
+                els.btnCancelExport = document.getElementById('btn-cancel-export');
+
+                // Attach Event Listeners
+                window.addEventListener('resize', resizeCanvas);
+                resizeCanvas();
+                populateLibrary();
+
+                // Flight Control Bindings
+                function updateHeading(deg) {
+                    deg = (deg % 360 + 360) % 360; 
+                    state.ownship.heading = deg;
+                    if(els.hdgInput) els.hdgInput.value = Math.round(deg).toString().padStart(3, '0');
+                    if(els.hdgPointer) els.hdgPointer.style.transform = `rotate(${deg}deg)`;
+                }
+
+                if (els.hdgInput) {
+                    els.hdgInput.addEventListener('change', (e) => {
+                        updateHeading(parseFloat(e.target.value) || 0);
+                    });
+                }
+
+                let isDraggingDial = false;
+                if (els.hdgDial) {
+                    els.hdgDial.addEventListener('mousedown', (e) => { isDraggingDial = true; setHeadingFromMouse(e); });
+                    document.addEventListener('mousemove', (e) => { if(isDraggingDial) setHeadingFromMouse(e); });
+                    document.addEventListener('mouseup', () => { isDraggingDial = false; });
+                }
+
+                function setHeadingFromMouse(e) {
+                    const rect = els.hdgDial.getBoundingClientRect();
+                    const cx = rect.left + rect.width / 2;
+                    const cy = rect.top + rect.height / 2;
+                    let rad = Math.atan2(e.clientY - cy, e.clientX - cx);
+                    let deg = rad * (180 / Math.PI) + 90;
+                    updateHeading(deg);
+                }
+                
+                updateHeading(state.ownship.heading);
+
+                if (els.spdSlider) {
+                    els.spdSlider.addEventListener('input', (e) => {
+                        state.ownship.speedKnots = parseInt(e.target.value);
+                        state.ownship.speed = (state.ownship.speedKnots / 400) * 0.1;
+                        document.getElementById('spd-val').innerText = state.ownship.speedKnots;
+                    });
+                }
+
+                if (els.altSlider) {
+                    els.altSlider.addEventListener('input', (e) => {
+                        state.ownship.altitude = parseInt(e.target.value);
+                        document.getElementById('alt-val').innerText = state.ownship.altitude;
+                        document.getElementById('hud-alt').innerText = state.ownship.altitude.toLocaleString() + " FT";
+                    });
+                }
+
+                // Library Row Click Auto-fill
+                els.libraryBody.addEventListener('click', (e) => {
+                    const tr = e.target.closest('tr');
+                    if (tr && tr.dataset.key) {
+                        els.emitterSelect.value = tr.dataset.key;
+                    }
+                });
+
+                els.btnAopMode.addEventListener('click', toggleAOPMode);
+                els.btnConfirmAop.addEventListener('click', confirmAOP);
+                
+                // Export Logic
+                els.btnExport.addEventListener('click', () => {
+                    els.studentNameInput.value = ''; // Reset input
+                    els.exportModal.style.display = 'flex';
+                    els.studentNameInput.focus();
+                });
+
+                els.btnCancelExport.addEventListener('click', () => {
+                    els.exportModal.style.display = 'none';
+                });
+
+                els.btnConfirmExport.addEventListener('click', () => {
+                    const studentName = els.studentNameInput.value.trim() || "Anonymous_Student";
+                    exportData(studentName);
+                    els.exportModal.style.display = 'none';
+                });
+                
+                els.btnCloseAnalyzer.addEventListener('click', closeAnalyzer);
+                els.btnSubmit.addEventListener('click', submitMeasurement);
+                
+                els.scopeBtnFreeze.addEventListener('click', toggleFreeze);
+                els.scopeBtnZoom.addEventListener('click', toggleZoom);
+                els.scopeBtnPri.addEventListener('click', () => setMeasureMode('pri'));
+                els.scopeBtnPw.addEventListener('click', () => setMeasureMode('pw'));
+                els.scopeBtnClear.addEventListener('click', clearMeasurement);
+                
+                els.scopeCanvas.addEventListener('mousedown', handleScopeClick);
+                els.scopeCanvas.addEventListener('mousemove', (e) => {
+                    const rect = els.scopeCanvas.getBoundingClientRect();
+                    state.scope.mouseX = e.clientX - rect.left;
+                });
+
+                els.tacCanvas.addEventListener('mousedown', handleTacClick);
+
+                // Setup Context Menu Events
+                document.querySelectorAll('.menu-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        const shipClass = e.target.getAttribute('data-class');
+                        assignShipClass(shipClass);
+                    });
+                });
+
+                // ESM Table action delegation
+                els.esmBody.addEventListener('click', handleEsmActions);
+                els.esmBody.addEventListener('change', handleEsmActions);
+
+                // Resizer Drag Logic using Pointer Events (solves iframe boundary issues)
+                els.resizer.addEventListener('pointerdown', (e) => {
+                    e.preventDefault(); 
+                    state.isResizing = true;
+                    els.resizer.setPointerCapture(e.pointerId); // Lock pointer to the resizer
+                    
+                    els.resizer.classList.add('active');
+                    document.body.style.cursor = 'ns-resize';
+                    document.body.style.userSelect = 'none'; 
+                    
+                    // Disable pointer events on children during drag to prevent jittering
+                    els.tacContainer.style.pointerEvents = 'none';
+                    els.esmPanel.style.pointerEvents = 'none';
+                });
+
+                els.resizer.addEventListener('pointermove', (e) => {
+                    if (!state.isResizing) return;
+                    
+                    // Use container's bounding rect instead of window.innerHeight for precise iframe rendering
+                    const containerRect = document.getElementById('main-container').getBoundingClientRect();
+                    let newHeight = containerRect.bottom - e.clientY;
+                    
+                    // Constrain panel height so it doesn't break the layout
+                    if (newHeight < 100) newHeight = 100;
+                    if (newHeight > containerRect.height - 150) newHeight = containerRect.height - 150;
+                    
+                    els.esmPanel.style.height = `${newHeight}px`;
+                    resizeCanvas();
+                });
+
+                els.resizer.addEventListener('pointerup', (e) => {
+                    if (state.isResizing) {
+                        state.isResizing = false;
+                        els.resizer.releasePointerCapture(e.pointerId); // Release the lock
+                        
+                        els.resizer.classList.remove('active');
+                        document.body.style.cursor = '';
+                        document.body.style.userSelect = ''; 
+                        
+                        // Re-enable pointer events
+                        els.tacContainer.style.pointerEvents = '';
+                        els.esmPanel.style.pointerEvents = '';
+                        resizeCanvas();
+                    }
+                });
+
+                state.gameAnimId = requestAnimationFrame(gameLoop);
+            });
+
+            function populateLibrary() {
+                const libraryBody = document.getElementById('library-body');
+                const sortedKeys = Object.keys(RADAR_PROFILES).sort((a, b) => RADAR_PROFILES[a].freq - RADAR_PROFILES[b].freq);
+                
+                sortedKeys.forEach(key => {
+                    const p = RADAR_PROFILES[key];
+                    const row = `<tr data-key="${key}">
+                        <td>${key}</td>
+                        <td style="color: var(--accent-blue);">${p.freq.toFixed(3)}</td>
+                        <td>${p.pri}</td>
+                        <td>${p.pw}</td>
+                    </tr>`;
+                    libraryBody.insertAdjacentHTML('beforeend', row);
+                });
+
+                // Populate the dropdown alphabetically
+                const alphaKeys = Object.keys(RADAR_PROFILES).sort((a, b) => a.localeCompare(b));
+                alphaKeys.forEach(key => {
+                    const opt = document.createElement('option');
+                    opt.value = key;
+                    opt.textContent = key;
+                    els.emitterSelect.appendChild(opt);
+                });
+            }
+
+            function resizeCanvas() {
+                if (els.tacContainer && els.tacCanvas) {
+                    const newWidth = els.tacContainer.clientWidth;
+                    const newHeight = els.tacContainer.clientHeight;
+                    // Only re-assign if changed to prevent aggressive context clearing during drag
+                    if (els.tacCanvas.width !== newWidth) els.tacCanvas.width = newWidth;
+                    if (els.tacCanvas.height !== newHeight) els.tacCanvas.height = newHeight;
+                }
+                if (els.scopeCanvas && els.scopeCanvas.parentElement) {
+                    const newScopeWidth = els.scopeCanvas.parentElement.clientWidth;
+                    if (els.scopeCanvas.width !== newScopeWidth) els.scopeCanvas.width = newScopeWidth;
+                }
+            }
+
+            // --- GAME LOOP ---
+            function gameLoop() {
+                update();
+                drawTacplot();
+                state.gameAnimId = requestAnimationFrame(gameLoop);
+            }
+
+            function update() {
+                const rad = (state.ownship.heading - 90) * (Math.PI / 180);
+                state.ownship.x += Math.cos(rad) * state.ownship.speed;
+                state.ownship.y += Math.sin(rad) * state.ownship.speed;
+
+                document.getElementById('hud-lat').innerText = (25.122 + (state.ownship.y / -10000)).toFixed(3) + " N";
+                document.getElementById('hud-lon').innerText = (121.560 + (state.ownship.x / 10000)).toFixed(3) + " E";
+
+                let currentKeys = [];
+
+                SCENARIO_ENTITIES.forEach(entity => {
+                    const dx = entity.x - state.ownship.x;
+                    const dy = entity.y - state.ownship.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+
+                    // Radar Horizon Formula: 1.23 * (sqrt(h1) + sqrt(h2)) in NM
+                    // Scale factor of 3.5 applied to map pixel space
+                    const radarHorizonNM = 1.23 * (Math.sqrt(state.ownship.altitude) + Math.sqrt(entity.alt));
+                    const detectionRange = radarHorizonNM * 3.5;
+
+                    if (dist < detectionRange) {
+                        entity.radars.forEach(rKey => {
+                            const uniqueId = `${entity.id}-${rKey.replace(/\s+/g, '')}`;
+                            currentKeys.push(uniqueId);
+                            let existing = state.activeIntercepts.find(i => i.id === uniqueId);
+                            const bearing = (Math.atan2(dy, dx) * 180 / Math.PI + 90 + 360) % 360;
+                            
+                            if (!existing) {
+                                state.activeIntercepts.push({
+                                    id: uniqueId, 
+                                    displayId: state.interceptCounter++,
+                                    radarKey: rKey, 
+                                    bearing: bearing, 
+                                    showLOB: true, 
+                                    identified: false
+                                });
+                            } else {
+                                existing.bearing = bearing;
+                            }
+                        });
+                    }
+                });
+
+                state.activeIntercepts = state.activeIntercepts.filter(i => currentKeys.includes(i.id));
+                checkAutoIdentify();
+                updateESMTable();
+            }
+
+            function drawTacplot() {
+                if (!els.tacCtx) return;
+                const ctx = els.tacCtx;
+                const canvas = els.tacCanvas;
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+
+                ctx.save();
+                ctx.translate(centerX - state.ownship.x, centerY - state.ownship.y);
+
+                // --- Infinite Grid ---
+                ctx.strokeStyle = "#151515";
+                ctx.lineWidth = 1;
+                const gridSize = 200;
+                const startX = Math.floor((state.ownship.x - centerX) / gridSize) * gridSize;
+                const endX = startX + canvas.width + gridSize;
+                const startY = Math.floor((state.ownship.y - centerY) / gridSize) * gridSize;
+                const endY = startY + canvas.height + gridSize;
+
+                ctx.beginPath();
+                for (let x = startX; x <= endX; x += gridSize) {
+                    ctx.moveTo(x, startY); ctx.lineTo(x, endY);
+                }
+                for (let y = startY; y <= endY; y += gridSize) {
+                    ctx.moveTo(startX, y); ctx.lineTo(endX, y);
+                }
+                ctx.stroke();
+
+                // Coastline
+                ctx.strokeStyle = "#444";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(-500, -200); ctx.lineTo(0, 200); ctx.lineTo(-100, 600); ctx.lineTo(50, 1200);
+                ctx.moveTo(600, 200); ctx.lineTo(750, 350); ctx.lineTo(720, 600); ctx.lineTo(550, 550); ctx.closePath();
+                ctx.stroke();
+
+                // Static Dropped LOBs
+                state.droppedLOBs.forEach(lob => {
+                    // Hide if the parent emitter is currently active and toggled hidden
+                    const parentIntercept = state.activeIntercepts.find(i => i.displayId === lob.displayId);
+                    if (parentIntercept && !parentIntercept.showLOB) return;
+
+                    const isSelected = state.selectedLOBs.includes(lob);
+                    const rad = (lob.bearing - 90) * (Math.PI / 180);
+                    const lobLength = 4000;
+                    
+                    ctx.beginPath(); 
+                    ctx.setLineDash([]); 
+                    ctx.strokeStyle = isSelected ? varToColor('--accent-blue') : "rgba(100, 100, 100, 0.8)";
+                    ctx.lineWidth = isSelected ? 2 : 1;
+                    ctx.moveTo(lob.x, lob.y);
+                    ctx.lineTo(lob.x + Math.cos(rad) * lobLength, lob.y + Math.sin(rad) * lobLength);
+                    ctx.stroke();
+
+                    // Draw Text ID and Time along the line
+                    const textDist = 450; // offset from ownship drop position
+                    const tx = lob.x + Math.cos(rad) * textDist;
+                    const ty = lob.y + Math.sin(rad) * textDist;
+                    
+                    ctx.save();
+                    ctx.translate(tx, ty);
+                    
+                    // Keep text upright
+                    let textRad = rad;
+                    if (Math.cos(rad) < 0) {
+                        textRad += Math.PI;
+                    }
+                    ctx.rotate(textRad);
+                    
+                    ctx.fillStyle = isSelected ? varToColor('--accent-blue') : "rgba(180, 180, 180, 0.9)";
+                    ctx.font = isSelected ? "bold 12px Courier New" : "11px Courier New";
+                    ctx.fillText(`#${lob.displayId} [${lob.time}]`, 5, -5);
+                    ctx.restore();
+                });
+
+                // Active Intercept Live LOBs
+                state.activeIntercepts.forEach(intercept => {
+                    if (!intercept.showLOB) return;
+                    const rad = (intercept.bearing - 90) * (Math.PI / 180);
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(state.ownship.x, state.ownship.y);
+                    ctx.lineTo(state.ownship.x + Math.cos(rad) * 4000, state.ownship.y + Math.sin(rad) * 4000);
+                    
+                    if (intercept.identified) {
+                        ctx.strokeStyle = 'rgba(0, 255, 65, 0.5)';
+                        ctx.setLineDash([]);
+                    } else {
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                        ctx.setLineDash([15, 10]);
+                        ctx.lineDashOffset = -(Date.now() / 50) % 25; 
+                    }
+                    ctx.stroke();
+                });
+
+                // AOPs
+                state.aops.forEach((aop) => {
+                    ctx.beginPath(); 
+                    ctx.setLineDash([]); 
+                    ctx.strokeStyle = varToColor('--accent-blue');
+                    ctx.fillStyle = 'rgba(0, 210, 255, 0.15)';
+                    ctx.ellipse(aop.x, aop.y, aop.radius, aop.radius * 0.7, 0, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    if (aop.correlation) {
+                        ctx.fillStyle = varToColor('--accent-blue');
+                        ctx.font = "bold 12px Courier New";
+                        const textWidth = ctx.measureText(aop.correlation).width;
+                        ctx.fillText(aop.correlation, aop.x - (textWidth/2), aop.y + 4);
+                    }
+                });
+
+                ctx.restore();
+
+                // Ownship Fixed Center
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(state.ownship.heading * Math.PI / 180);
+                ctx.fillStyle = varToColor('--accent-green');
+                ctx.beginPath();
+                ctx.moveTo(0, -15); 
+                ctx.lineTo(12, 12); 
+                ctx.lineTo(0, 5); 
+                ctx.lineTo(-12, 12); 
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // --- ESM LOGIC ---
+            function updateESMTable() {
+                const currentHash = state.activeIntercepts.map(i => `${i.id}-${i.identified}-${i.showLOB}`).join('|');
+                
+                if (currentHash !== state.esmListHash) {
+                    state.esmListHash = currentHash;
+                    els.esmBody.innerHTML = ''; 
+                    
+                    state.activeIntercepts.forEach(intercept => {
+                        const profile = RADAR_PROFILES[intercept.radarKey];
+                        const row = document.createElement('tr');
+                        row.id = `row-${intercept.id}`;
+                        
+                        row.innerHTML = `
+                            <td style="font-weight: bold; color: #fff;">#${intercept.displayId}</td>
+                            <td><input type="checkbox" class="lob-toggle" data-id="${intercept.id}" ${intercept.showLOB ? 'checked' : ''}></td>
+                            <td class="${intercept.identified ? 'status-id' : 'status-unid'}">${intercept.identified ? intercept.radarKey : 'UNKNOWN SIGNAL'}</td>
+                            <td class="bearing-cell" style="font-family: monospace;">${intercept.bearing.toFixed(1)}°</td>
+                            <td style="color: var(--accent-blue);">${intercept.identified ? profile.freq.toFixed(3) : '---'}</td>
+                            <td>${intercept.identified ? profile.pri : '---'}</td>
+                            <td>${intercept.identified ? profile.pw : '---'}</td>
+                            <td>
+                                <button class="btn-drop-lob" data-id="${intercept.id}">Drop LOB</button>
+                                <button class="btn-analyze" data-id="${intercept.id}">Analyze</button>
+                            </td>
+                        `;
+                        els.esmBody.appendChild(row);
+                    });
+                } else {
+                    state.activeIntercepts.forEach(intercept => {
+                        const row = document.getElementById(`row-${intercept.id}`);
+                        if (row) {
+                            const cell = row.querySelector('.bearing-cell');
+                            if (cell) cell.innerText = `${intercept.bearing.toFixed(1)}°`;
+                        }
+                    });
+                }
+            }
+
+            function handleEsmActions(e) {
+                const target = e.target;
+                const id = target.getAttribute('data-id');
+                if (!id) return;
+
+                if (target.classList.contains('lob-toggle')) {
+                    const intercept = state.activeIntercepts.find(x => x.id === id);
+                    if (intercept) {
+                        intercept.showLOB = target.checked;
+                        state.esmListHash = ""; // Force UI update
+                    }
+                } else if (target.classList.contains('btn-drop-lob')) {
+                    const intercept = state.activeIntercepts.find(x => x.id === id);
+                    if (intercept) {
+                        const timeStr = new Date().toTimeString().split(' ')[0]; // HH:MM:SS
+                        state.droppedLOBs.push({ 
+                            id: Math.random().toString(36).substr(2, 9),
+                            displayId: intercept.displayId,
+                            time: timeStr,
+                            x: state.ownship.x, 
+                            y: state.ownship.y, 
+                            bearing: intercept.bearing 
+                        });
+                        showToast(`LOB Dropped for Emitter #${intercept.displayId}`);
+                    }
+                } else if (target.classList.contains('btn-analyze')) {
+                    openAnalyzer(id);
+                }
+            }
+
+            // --- ANALYZER LOGIC ---
+            function openAnalyzer(id) {
+                state.currentAnalysisRadar = state.activeIntercepts.find(x => x.id === id);
+                if (!state.currentAnalysisRadar) return;
+                
+                const profile = RADAR_PROFILES[state.currentAnalysisRadar.radarKey];
+                els.freqDisplay.innerText = profile.freq.toFixed(3) + " GHz";
+                
+                resetFeedback();
+                clearMeasurement();
+                els.modal.style.display = 'flex';
+                
+                // Force a resize calculation now that the modal is visible
+                resizeCanvas();
+                
+                state.scope.offset = 0;
+                
+                startScopeAnimation();
+            }
+
+            function closeAnalyzer() {
+                els.modal.style.display = 'none';
+                state.scope.isFrozen = false;
+                els.scopeBtnFreeze.innerText = "FREEZE FEED";
+                els.scopeBtnFreeze.classList.remove('active');
+                if (state.scope.zoom > 1.0) toggleZoom(); // reset zoom
+                if (state.scopeAnimId) cancelAnimationFrame(state.scopeAnimId);
+            }
+
+            function toggleFreeze() {
+                state.scope.isFrozen = !state.scope.isFrozen;
+                els.scopeBtnFreeze.innerText = state.scope.isFrozen ? "UNFREEZE FEED" : "FREEZE FEED";
+                els.scopeBtnFreeze.classList.toggle('active', state.scope.isFrozen);
+            }
+
+            function toggleZoom() {
+                if (state.scope.zoom === 1.0) {
+                    state.scope.zoom = 50.0;
+                    els.scopeBtnZoom.innerText = "ZOOM (OUT)";
+                    els.scopeBtnZoom.classList.add('active');
+                    
+                    // Auto-Center the pulse
+                    const profile = RADAR_PROFILES[state.currentAnalysisRadar.radarKey];
+                    const currentScale = state.scope.basePixelScale * state.scope.zoom;
+                    const priPx = profile.pri * currentScale;
+                    const pwPx = profile.pw * currentScale;
+                    
+                    // Center mathematically: we want the middle of the pulse to be at canvasWidth / 2
+                    let desiredOffset = (pwPx / 2) - (els.scopeCanvas.width / 2);
+                    state.scope.offset = ((desiredOffset % priPx) + priPx) % priPx; // Normalize
+                    
+                    if (!state.scope.isFrozen) toggleFreeze(); // Auto freeze
+                    showToast("Zoomed 50x and centered on pulse");
+                } else {
+                    state.scope.zoom = 1.0;
+                    els.scopeBtnZoom.innerText = "ZOOM (50x)";
+                    els.scopeBtnZoom.classList.remove('active');
+                }
+                
+                document.getElementById('scope-overlay').innerText = `SCALE: ${(state.scope.basePixelScale * state.scope.zoom).toFixed(2)}px / µs | ZOOM: ${state.scope.zoom.toFixed(1)}x`;
+                state.scope.clicks = []; 
+            }
+
+            function setMeasureMode(mode) {
+                state.scope.measurementMode = mode;
+                state.scope.clicks = [];
+                document.getElementById('measure-status').innerText = `MODE: MEASURING ${mode.toUpperCase()}`;
+                
+                els.scopeBtnPw.classList.remove('active');
+                els.scopeBtnPri.classList.remove('active');
+                
+                if (mode === 'pw') els.scopeBtnPw.classList.add('active');
+                if (mode === 'pri') els.scopeBtnPri.classList.add('active');
+            }
+
+            function clearMeasurement() {
+                state.scope.measurementMode = null;
+                state.scope.clicks = [];
+                document.getElementById('measure-status').innerText = `MODE: LIVE`;
+                els.scopeBtnPw.classList.remove('active');
+                els.scopeBtnPri.classList.remove('active');
+                
+                els.inputPri.value = '';
+                els.inputPw.value = '';
+                els.emitterSelect.value = '';
+            }
+
+            function handleScopeClick(e) {
+                if (!state.scope.measurementMode || !els.scopeCanvas) return;
+                
+                state.scope.clicks.push(state.scope.mouseX);
+
+                if (state.scope.clicks.length === 2) {
+                    const pixelDist = Math.abs(state.scope.clicks[1] - state.scope.clicks[0]);
+                    const currentScale = state.scope.basePixelScale * state.scope.zoom;
+                    const timeValue = (pixelDist / currentScale).toFixed(2);
+                    
+                    if (state.scope.measurementMode === 'pw') {
+                        els.inputPw.value = timeValue;
+                    } else if (state.scope.measurementMode === 'pri') {
+                        els.inputPri.value = timeValue;
+                    }
+                    
+                    setTimeout(() => { state.scope.clicks = []; }, 200);
+                }
+            }
+
+            function startScopeAnimation() {
+                if (!state.currentAnalysisRadar || !els.scopeCtx) return;
+                const profile = RADAR_PROFILES[state.currentAnalysisRadar.radarKey];
+                const ctx = els.scopeCtx;
+                const canvas = els.scopeCanvas;
+                
+                function animate() {
+                    const currentScale = state.scope.basePixelScale * state.scope.zoom;
+                    
+                    if (!state.scope.isFrozen) {
+                        state.scope.offset = (state.scope.offset + (2 * state.scope.zoom)) % (profile.pri * currentScale);
+                    }
+
+                    ctx.fillStyle = '#050505';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    ctx.strokeStyle = '#1a1a1a';
+                    const gridSpacing = 100 * state.scope.zoom;
+                    for(let x=0; x<canvas.width; x += Math.max(20, gridSpacing)) {
+                        ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x, canvas.height); ctx.stroke();
+                    }
+
+                    ctx.strokeStyle = '#002200';
+                    ctx.beginPath();
+                    for(let x=0; x<canvas.width; x+=3) {
+                        ctx.lineTo(x, 210 - Math.random()*15);
+                    }
+                    ctx.stroke();
+
+                    ctx.strokeStyle = varToColor('--accent-green');
+                    ctx.lineWidth = 1.5;
+                    
+                    const pulseStep = profile.pri * currentScale;
+                    const pulseWidth = profile.pw * currentScale;
+                    const riseTime = Math.max(1, 0.05 * pulseWidth);
+                    const oscFreqMultiplier = profile.freq * 0.1;
+
+                    for (let xStart = -state.scope.offset; xStart < canvas.width; xStart += pulseStep) {
+                        if (xStart + pulseWidth < 0) continue;
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(xStart, 200); 
+                        ctx.lineTo(xStart + riseTime, 60); 
+                        
+                        for (let xOsc = xStart + riseTime; xOsc < xStart + pulseWidth - riseTime; xOsc += 0.5) {
+                            const wave = Math.sin(xOsc * oscFreqMultiplier * state.scope.zoom) * 15; 
+                            ctx.lineTo(xOsc, 75 + wave);
+                        }
+
+                        ctx.lineTo(xStart + pulseWidth - riseTime, 60); 
+                        ctx.lineTo(xStart + pulseWidth, 200); 
+                        ctx.stroke();
+                    }
+
+                    // --- Measurement Overlay Rendering ---
+                    if (state.scope.measurementMode) {
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                        ctx.setLineDash([2, 4]);
+                        ctx.beginPath();
+                        ctx.moveTo(state.scope.mouseX, 0);
+                        ctx.lineTo(state.scope.mouseX, canvas.height);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+
+                        if (state.scope.clicks.length === 1) {
+                            const startX = state.scope.clicks[0];
+                            const currentX = state.scope.mouseX;
+                            
+                            ctx.fillStyle = 'rgba(0, 210, 255, 0.15)';
+                            ctx.fillRect(Math.min(startX, currentX), 0, Math.abs(currentX - startX), canvas.height);
+                            
+                            ctx.strokeStyle = varToColor('--accent-blue');
+                            ctx.beginPath(); ctx.moveTo(startX, 0); ctx.lineTo(startX, canvas.height); ctx.stroke();
+
+                            const delta = (Math.abs(currentX - startX) / currentScale).toFixed(2);
+                            ctx.fillStyle = varToColor('--accent-blue');
+                            ctx.font = "bold 14px Courier New";
+                            ctx.fillText(`Δ: ${delta} µs`, Math.max(10, currentX + 10), 30);
+                        }
+                    }
+
+                    if (state.scope.clicks.length === 2 && !state.scope.measurementMode) {
+                        ctx.strokeStyle = varToColor('--accent-blue');
+                        state.scope.clicks.forEach(cx => {
+                            ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, canvas.height); ctx.stroke();
+                        });
+                    }
+
+                    state.scopeAnimId = requestAnimationFrame(animate);
+                }
+                
+                if (state.scopeAnimId) cancelAnimationFrame(state.scopeAnimId);
+                animate();
+            }
+
+            function setFeedback(message, type) {
+                els.feedbackPanel.innerText = message;
+                els.feedbackPanel.style.color = '#000';
+                if (type === 'error') {
+                    els.feedbackPanel.style.backgroundColor = varToColor('--accent-red');
+                    els.feedbackPanel.style.borderColor = varToColor('--accent-red');
+                } else if (type === 'success') {
+                    els.feedbackPanel.style.backgroundColor = varToColor('--accent-green');
+                    els.feedbackPanel.style.borderColor = varToColor('--accent-green');
+                }
+                
+                setTimeout(resetFeedback, 3000);
+            }
+            
+            function resetFeedback() {
+                els.feedbackPanel.innerText = "AWAITING INPUT...";
+                els.feedbackPanel.style.backgroundColor = 'transparent';
+                els.feedbackPanel.style.color = '#888';
+                els.feedbackPanel.style.borderColor = 'transparent';
+            }
+
+            function submitMeasurement() {
+                const priVal = els.inputPri.value;
+                const pwVal = els.inputPw.value;
+                const selectedType = els.emitterSelect.value;
+                
+                if (!selectedType) return setFeedback("ERROR: SELECT EMITTER IDENTITY", "error");
+
+                // Parse measurements if provided, otherwise default to 0 for logging
+                const pri = parseFloat(priVal) || 0;
+                const pw = parseFloat(pwVal) || 0;
+                
+                if (!state.currentAnalysisRadar) return;
+                
+                const typeMatch = selectedType === state.currentAnalysisRadar.radarKey;
+
+                if (typeMatch) {
+                    state.currentAnalysisRadar.identified = true;
+                    state.userMeasurements[state.currentAnalysisRadar.id] = { pri, pw, type: selectedType, success: true };
+                    
+                    setFeedback("CLASSIFICATION SUCCESSFUL", "success");
+                    checkAutoIdentify(); // Check if we hit the 5 threshold
+                    setTimeout(closeAnalyzer, 1000);
+                    state.esmListHash = ""; 
+                } else {
+                    setFeedback("CLASSIFICATION FAILED: INCORRECT IDENTITY", "error");
+                }
+            }
+
+            // --- AOP LOGIC ---
+            function toggleAOPMode() {
+                state.aopBuildingMode = !state.aopBuildingMode;
+                els.btnAopMode.innerText = state.aopBuildingMode ? 'CANCEL AOP' : 'BUILD AOP';
+                els.btnAopMode.classList.toggle('danger', state.aopBuildingMode);
+                els.tacContainer.classList.toggle('aop-active', state.aopBuildingMode);
+                els.contextMenu.style.display = 'none';
+                
+                if (state.aopBuildingMode) {
+                    state.selectedLOBs = [];
+                    els.btnConfirmAop.style.display = 'block';
+                    els.btnConfirmAop.innerText = "CONFIRM AOP (0/3)";
+                    els.btnConfirmAop.disabled = true;
+                    showToast("AOP Mode Active: Click on map near LOB lines to select them.");
+                } else {
+                    state.selectedLOBs = [];
+                    els.btnConfirmAop.style.display = 'none';
+                }
+            }
+
+            function distToSegment(px, py, x1, y1, x2, y2) {
+                const l2 = (x2-x1)**2 + (y2-y1)**2;
+                if (l2 === 0) return Math.sqrt((px-x1)**2 + (py-y1)**2);
+                let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+                t = Math.max(0, Math.min(1, t));
+                const projX = x1 + t * (x2 - x1);
+                const projY = y1 + t * (y2 - y1);
+                return Math.sqrt((px - projX)**2 + (py - projY)**2);
+            }
+
+            function getIntersection(l1, l2) {
+                const rad1 = (l1.bearing - 90) * (Math.PI / 180);
+                const rad2 = (l2.bearing - 90) * (Math.PI / 180);
+                const dx1 = Math.cos(rad1), dy1 = Math.sin(rad1);
+                const dx2 = Math.cos(rad2), dy2 = Math.sin(rad2);
+
+                const det = dx1 * dy2 - dy1 * dx2;
+                if (Math.abs(det) < 0.001) return null; // Parallel
+
+                const t1 = ((l2.x - l1.x) * dy2 - (l2.y - l1.y) * dx2) / det;
+                if (t1 < 0) return null; // Behind ownship
+                
+                return { x: l1.x + t1 * dx1, y: l1.y + t1 * dy1 };
+            }
+
+            function handleTacClick(e) {
+                if (!els.tacCanvas) return;
+                const rect = els.tacCanvas.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+                const worldX = clickX - (els.tacCanvas.width / 2) + state.ownship.x;
+                const worldY = clickY - (els.tacCanvas.height / 2) + state.ownship.y;
+
+                if (state.aopBuildingMode) {
+                    // Try to select a LOB
+                    let clickedLob = null;
+                    let minD = 20; // Hit radius
+                    
+                    state.droppedLOBs.forEach(lob => {
+                        const rad = (lob.bearing - 90) * (Math.PI / 180);
+                        const endX = lob.x + Math.cos(rad) * 4000;
+                        const endY = lob.y + Math.sin(rad) * 4000;
+                        const d = distToSegment(worldX, worldY, lob.x, lob.y, endX, endY);
+                        if (d < minD) {
+                            minD = d;
+                            clickedLob = lob;
+                        }
+                    });
+
+                    if (clickedLob) {
+                        const idx = state.selectedLOBs.findIndex(l => l.id === clickedLob.id);
+                        if (idx > -1) {
+                            // Deselect
+                            state.selectedLOBs.splice(idx, 1);
+                        } else {
+                            // Select (ensure it matches the ID of already selected LOBs)
+                            if (state.selectedLOBs.length > 0 && clickedLob.displayId !== state.selectedLOBs[0].displayId) {
+                                showToast("ERROR: LOBs must be from the same Emitter ID.", "error");
+                                return;
+                            }
+                            state.selectedLOBs.push(clickedLob);
+                        }
+
+                        els.btnConfirmAop.innerText = `CONFIRM AOP (${state.selectedLOBs.length}/3+)`;
+                        els.btnConfirmAop.disabled = state.selectedLOBs.length < 3;
+                    }
+
+                } else {
+                    // Assign Ship Class to existing AOP
+                    const clickedIdx = state.aops.findIndex(a => Math.sqrt((a.x-worldX)**2 + (a.y-worldY)**2) < a.radius);
+                    if (clickedIdx !== -1) {
+                        state.selectedAopIndex = clickedIdx;
+                        els.contextMenu.style.display = 'block'; 
+                        els.contextMenu.style.left = e.clientX + 'px'; 
+                        els.contextMenu.style.top = e.clientY + 'px';
+                        return;
+                    } else {
+                        els.contextMenu.style.display = 'none';
+                    }
+
+                    // Check for Dropped LOB click to DELETE
+                    let clickedDroppedLobIdx = -1;
+                    let minD = 20;
+                    state.droppedLOBs.forEach((lob, idx) => {
+                        const rad = (lob.bearing - 90) * (Math.PI / 180);
+                        const endX = lob.x + Math.cos(rad) * 4000;
+                        const endY = lob.y + Math.sin(rad) * 4000;
+                        const d = distToSegment(worldX, worldY, lob.x, lob.y, endX, endY);
+                        if (d < minD) {
+                            minD = d;
+                            clickedDroppedLobIdx = idx;
+                        }
+                    });
+
+                    if (clickedDroppedLobIdx !== -1) {
+                        const delLob = state.droppedLOBs[clickedDroppedLobIdx];
+                        state.droppedLOBs.splice(clickedDroppedLobIdx, 1);
+                        showToast(`Deleted Dropped LOB (Emitter #${delLob.displayId})`);
+                        return;
+                    }
+
+                    // Check for Active LOB click to HIGHLIGHT ESM Row
+                    let clickedActiveLob = null;
+                    minD = 20;
+                    state.activeIntercepts.forEach(intercept => {
+                        if (!intercept.showLOB) return;
+                        const rad = (intercept.bearing - 90) * (Math.PI / 180);
+                        const endX = state.ownship.x + Math.cos(rad) * 4000;
+                        const endY = state.ownship.y + Math.sin(rad) * 4000;
+                        const d = distToSegment(worldX, worldY, state.ownship.x, state.ownship.y, endX, endY);
+                        if (d < minD) {
+                            minD = d;
+                            clickedActiveLob = intercept;
+                        }
+                    });
+
+                    if (clickedActiveLob) {
+                        highlightESMRow(clickedActiveLob.id);
+                    }
+                }
+            }
+
+            function confirmAOP() {
+                if (state.selectedLOBs.length < 3) return;
+
+                let intersections = [];
+                for(let i=0; i<state.selectedLOBs.length; i++) {
+                    for(let j=i+1; j<state.selectedLOBs.length; j++) {
+                        let pt = getIntersection(state.selectedLOBs[i], state.selectedLOBs[j]);
+                        if (pt) intersections.push(pt);
+                    }
+                }
+
+                if (intersections.length === 0) {
+                    showToast("ERROR: Lines do not intersect validly.", "error");
+                    return;
+                }
+
+                let cx = 0, cy = 0;
+                intersections.forEach(p => { cx += p.x; cy += p.y; });
+                cx /= intersections.length;
+                cy /= intersections.length;
+
+                let maxDist = 20; 
+                intersections.forEach(p => {
+                    let d = Math.sqrt((p.x-cx)**2 + (p.y-cy)**2);
+                    if (d > maxDist) maxDist = d;
+                });
+
+                state.aops.push({ 
+                    x: cx, 
+                    y: cy, 
+                    radius: maxDist + 20, // Add padding
+                    correlation: null 
+                });
+                
+                showToast("AOP Created successfully.");
+                toggleAOPMode(); // Turn off mode
+            }
+
+            function assignShipClass(name) {
+                if (state.selectedAopIndex !== null && state.aops[state.selectedAopIndex]) {
+                    state.aops[state.selectedAopIndex].correlation = name;
+                }
+                els.contextMenu.style.display = 'none';
+            }
+
+            // --- UTILS ---
+            function highlightESMRow(id) {
+                const row = document.getElementById(`row-${id}`);
+                if (row) {
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    row.classList.remove('highlight-row');
+                    void row.offsetWidth; // trigger reflow
+                    row.classList.add('highlight-row');
+                    
+                    const intercept = state.activeIntercepts.find(i => i.id === id);
+                    if (intercept) {
+                        showToast(`Highlighted Emitter #${intercept.displayId}`, "info");
+                    }
+                }
+            }
+
+            function checkAutoIdentify() {
+                let currentMatches = Object.keys(state.userMeasurements).length;
+                
+                if (!state.autoIdentifyUnlocked && currentMatches >= 5) {
+                    state.autoIdentifyUnlocked = true;
+                    showToast("SYSTEM OVERRIDE: Auto-Identification Unlocked (5+ matches)", "success");
+                }
+
+                if (state.autoIdentifyUnlocked) {
+                    state.activeIntercepts.forEach(intercept => {
+                        if (!intercept.identified) {
+                            intercept.identified = true;
+                            const profile = RADAR_PROFILES[intercept.radarKey];
+                            state.userMeasurements[intercept.id] = { 
+                                pri: profile.pri, 
+                                pw: profile.pw, 
+                                type: intercept.radarKey, 
+                                success: true 
+                            };
+                            state.esmListHash = ""; // force re-render
+                        }
+                    });
+                }
+            }
+
+            function showToast(msg, type = "info") {
+                const toast = document.createElement('div');
+                toast.className = 'toast';
+                toast.innerText = msg;
+                if (type === "error") {
+                    toast.style.borderColor = varToColor('--accent-red');
+                    toast.style.color = varToColor('--accent-red');
+                }
+                els.toastContainer.appendChild(toast);
+                
+                // Animate in
+                setTimeout(() => toast.style.opacity = '1', 10);
+                
+                // Animate out and remove
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            }
+
+            function exportData(studentName) {
+                const data = { 
+                    studentName: studentName,
+                    timestamp: new Date().toISOString(), 
+                    score: Object.keys(state.userMeasurements).length,
+                    userMeasurements: state.userMeasurements, 
+                    aops: state.aops,
+                    groundTruth: SCENARIO_ENTITIES // Added for external grading scripts
+                };
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const a = document.createElement('a'); 
+                a.href = URL.createObjectURL(blob); 
+                
+                // Make the filename friendly by stripping weird characters from the name
+                const safeName = studentName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                a.download = `elint_grading_${safeName}_${Date.now()}.json`; 
+                a.click();
+                
+                showToast(`Grading data exported for ${studentName}`, "success");
+            }
+
+            function varToColor(v) { 
+                return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); 
+            }
+
+        })(); // End IIFE
+    </script>
+</body>
+</html>

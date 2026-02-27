@@ -265,8 +265,8 @@
             backdrop-filter: blur(3px);
         }
 
-        /* Export Modal */
-        #export-modal {
+        /* Export & Platform Modal */
+        #export-modal, #platform-modal {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -511,6 +511,7 @@
             </div>
         </div>
         <div class="control-group" style="margin-left: 10px;">
+            <button id="btn-platform-library" style="border-color: var(--accent-blue); color: var(--accent-blue);">PLATFORM LIBRARY</button>
             <button id="btn-export">Export Grading Data</button>
             <button id="btn-aop-mode" title="Toggle AOP Building">BUILD AOP</button>
             <button id="btn-confirm-aop" style="display: none;">CONFIRM AOP (0/3)</button>
@@ -542,10 +543,10 @@
                         <th width="5%">LOB</th>
                         <th width="20%">EMITTER NAME</th>
                         <th width="10%">BEARING</th>
-                        <th width="15%">FREQ (GHz)</th>
-                        <th width="15%">PRI (µs)</th>
-                        <th width="15%">PW (µs)</th>
-                        <th width="15%">ACTIONS</th>
+                        <th width="10%">FREQ (GHz)</th>
+                        <th width="10%">PRI (µs)</th>
+                        <th width="10%">PW (µs)</th>
+                        <th width="30%">ACTIONS</th>
                     </tr>
                 </thead>
                 <tbody id="esm-body">
@@ -643,6 +644,29 @@
         </div>
     </div>
 
+    <!-- Platform Library Modal -->
+    <div id="platform-modal">
+        <div class="export-content" style="width: 500px; max-height: 80vh;">
+            <h3 style="color: var(--accent-blue); margin-top: 0; text-align: center; font-size: 14px; letter-spacing: 1px;">PLATFORM & EMITTER REFERENCE</h3>
+            <div style="overflow-y: auto; flex: 1; border: 1px solid #333; margin-bottom: 10px;">
+                <table class="library-table">
+                    <thead>
+                        <tr>
+                            <th width="45%">Platform Class</th>
+                            <th width="55%">Associated Radars</th>
+                        </tr>
+                    </thead>
+                    <tbody id="platform-library-body">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div style="display: flex; justify-content: center;">
+                <button id="btn-close-platform-modal" class="danger">CLOSE LIBRARY</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Context Menu -->
     <div id="context-menu">
         <div class="menu-item" data-class="PLAN Type 055">Class: PLAN Type 055</div>
@@ -702,6 +726,23 @@
                 "JRC JMA-9122": { freq: 9.410, pri: 550, pw: 0.1 },
                 "Garmin Cyclone": { freq: 9.410, pri: 480, pw: 0.09 }
             };
+
+            const PLATFORM_LIBRARY = [
+                { class: "PLAN Type 055", radars: ["Type 346B Search", "Type 364 Mod 1", "Type 366 Mod 2"] },
+                { class: "PLAN Type 052D", radars: ["Type 346 Dragon Eye", "Type 364 Seagull C", "Type 366 Band Stand"] },
+                { class: "PLAN Type 054A", radars: ["Type 382 Top Knot", "Type 366 Band Stand", "Type 344 Fire Control"] },
+                { class: "VMF Sovremenny", radars: ["MR-710 Top Steer", "Type 366 Mod 2"] },
+                { class: "USN Arleigh Burke", radars: ["AN/SPY-1D", "AN/SPS-67", "AN/SPS-73"] },
+                { class: "USN Carrier", radars: ["AN/SPY-6(V)1", "AN/SPS-49", "AN/SPS-73"] },
+                { class: "E-3 Sentry (AWACS)", radars: ["AN/APY-1 (AWACS)"] },
+                { class: "E-2C Hawkeye", radars: ["AN/APS-145 (AEW)"] },
+                { class: "F/A-18 CAP", radars: ["AN/APG-79"] },
+                { class: "J-20 CAP", radars: ["Type 1475"] },
+                { class: "Commercial Freighter", radars: ["Furuno FAR-2218", "Raymarine Pathfinder"] },
+                { class: "Commercial Fishing", radars: ["HALO-6 Navigation"] },
+                { class: "Commercial Cruise Liner", radars: ["JRC JMA-9122", "Garmin Cyclone"] },
+                { class: "Coastal Defense Site", radars: ["Type 517M Search", "Tombstone Flap Lid"] }
+            ];
 
             const SCENARIO_ENTITIES = [
                 { id: 'E1', name: 'PLAN Type 055', x: 150, y: 250, alt: 100, radars: ["Type 346B Search", "Type 364 Mod 1", "Type 366 Mod 2"] },
@@ -776,6 +817,7 @@
                 els.modal = document.getElementById('modal-overlay');
                 
                 els.btnExport = document.getElementById('btn-export');
+                els.btnPlatformLibrary = document.getElementById('btn-platform-library');
                 els.btnAopMode = document.getElementById('btn-aop-mode');
                 els.btnConfirmAop = document.getElementById('btn-confirm-aop');
                 els.btnCloseAnalyzer = document.getElementById('btn-close-analyzer');
@@ -802,6 +844,10 @@
                 els.studentNameInput = document.getElementById('student-name-input');
                 els.btnConfirmExport = document.getElementById('btn-confirm-export');
                 els.btnCancelExport = document.getElementById('btn-cancel-export');
+
+                // Platform Library Modal Elements
+                els.platformModal = document.getElementById('platform-modal');
+                els.btnClosePlatformModal = document.getElementById('btn-close-platform-modal');
 
                 // Attach Event Listeners
                 window.addEventListener('resize', resizeCanvas);
@@ -867,6 +913,15 @@
                 els.btnAopMode.addEventListener('click', toggleAOPMode);
                 els.btnConfirmAop.addEventListener('click', confirmAOP);
                 
+                // Platform Library Logic
+                els.btnPlatformLibrary.addEventListener('click', () => {
+                    els.platformModal.style.display = 'flex';
+                });
+                
+                els.btnClosePlatformModal.addEventListener('click', () => {
+                    els.platformModal.style.display = 'none';
+                });
+
                 // Export Logic
                 els.btnExport.addEventListener('click', () => {
                     els.studentNameInput.value = ''; // Reset input
@@ -984,6 +1039,16 @@
                     opt.value = key;
                     opt.textContent = key;
                     els.emitterSelect.appendChild(opt);
+                });
+
+                // Populate the new Platform Library modal
+                const platformBody = document.getElementById('platform-library-body');
+                PLATFORM_LIBRARY.forEach(plat => {
+                    const row = `<tr>
+                        <td style="font-weight: bold; color: var(--accent-blue);">${plat.class}</td>
+                        <td>${plat.radars.join('<br>')}</td>
+                    </tr>`;
+                    platformBody.insertAdjacentHTML('beforeend', row);
                 });
             }
 
@@ -1190,16 +1255,25 @@
 
             // --- ESM LOGIC ---
             function updateESMTable() {
-                const currentHash = state.activeIntercepts.map(i => `${i.id}-${i.identified}-${i.showLOB}`).join('|');
+                // Sort array: active (visible) intercepts first, then by ID
+                const sortedIntercepts = [...state.activeIntercepts].sort((a, b) => {
+                    if (a.showLOB !== b.showLOB) return a.showLOB ? -1 : 1;
+                    return a.displayId - b.displayId;
+                });
+
+                const currentHash = sortedIntercepts.map(i => `${i.id}-${i.identified}-${i.showLOB}`).join('|');
                 
                 if (currentHash !== state.esmListHash) {
                     state.esmListHash = currentHash;
                     els.esmBody.innerHTML = ''; 
                     
-                    state.activeIntercepts.forEach(intercept => {
+                    sortedIntercepts.forEach(intercept => {
                         const profile = RADAR_PROFILES[intercept.radarKey];
                         const row = document.createElement('tr');
                         row.id = `row-${intercept.id}`;
+                        
+                        // Slightly dim row if it's hidden to visually distinguish it
+                        if (!intercept.showLOB) row.style.opacity = "0.5";
                         
                         row.innerHTML = `
                             <td style="font-weight: bold; color: #fff;">#${intercept.displayId}</td>
@@ -1209,15 +1283,16 @@
                             <td style="color: var(--accent-blue);">${intercept.identified ? profile.freq.toFixed(3) : '---'}</td>
                             <td>${intercept.identified ? profile.pri : '---'}</td>
                             <td>${intercept.identified ? profile.pw : '---'}</td>
-                            <td>
+                            <td style="display: flex; gap: 5px; flex-wrap: wrap;">
                                 <button class="btn-drop-lob" data-id="${intercept.id}">Drop LOB</button>
+                                <button class="btn-clear-lobs danger" data-id="${intercept.id}" style="padding: 6px 10px;">Clear LOBs</button>
                                 <button class="btn-analyze" data-id="${intercept.id}">Analyze</button>
                             </td>
                         `;
                         els.esmBody.appendChild(row);
                     });
                 } else {
-                    state.activeIntercepts.forEach(intercept => {
+                    sortedIntercepts.forEach(intercept => {
                         const row = document.getElementById(`row-${intercept.id}`);
                         if (row) {
                             const cell = row.querySelector('.bearing-cell');
@@ -1241,9 +1316,10 @@
                 } else if (target.classList.contains('btn-drop-lob')) {
                     const intercept = state.activeIntercepts.find(x => x.id === id);
                     if (intercept) {
-                        const timeStr = new Date().toTimeString().split(' ')[0]; // HH:MM:SS
+                        const timeStr = new Date().toTimeString().substring(0, 5); // HH:MM
                         state.droppedLOBs.push({ 
                             id: Math.random().toString(36).substr(2, 9),
+                            interceptId: intercept.id, // Reference to link back to ESM row
                             displayId: intercept.displayId,
                             time: timeStr,
                             x: state.ownship.x, 
@@ -1251,6 +1327,12 @@
                             bearing: intercept.bearing 
                         });
                         showToast(`LOB Dropped for Emitter #${intercept.displayId}`);
+                    }
+                } else if (target.classList.contains('btn-clear-lobs')) {
+                    const intercept = state.activeIntercepts.find(x => x.id === id);
+                    if (intercept) {
+                        state.droppedLOBs = state.droppedLOBs.filter(lob => lob.interceptId !== id);
+                        showToast(`Cleared all LOBs for Emitter #${intercept.displayId}`);
                     }
                 } else if (target.classList.contains('btn-analyze')) {
                     openAnalyzer(id);
@@ -1608,24 +1690,22 @@
                         els.contextMenu.style.display = 'none';
                     }
 
-                    // Check for Dropped LOB click to DELETE
-                    let clickedDroppedLobIdx = -1;
+                    // Check for Dropped LOB click to HIGHLIGHT ESM Row
+                    let clickedDroppedLob = null;
                     let minD = 20;
-                    state.droppedLOBs.forEach((lob, idx) => {
+                    state.droppedLOBs.forEach((lob) => {
                         const rad = (lob.bearing - 90) * (Math.PI / 180);
                         const endX = lob.x + Math.cos(rad) * 4000;
                         const endY = lob.y + Math.sin(rad) * 4000;
                         const d = distToSegment(worldX, worldY, lob.x, lob.y, endX, endY);
                         if (d < minD) {
                             minD = d;
-                            clickedDroppedLobIdx = idx;
+                            clickedDroppedLob = lob;
                         }
                     });
 
-                    if (clickedDroppedLobIdx !== -1) {
-                        const delLob = state.droppedLOBs[clickedDroppedLobIdx];
-                        state.droppedLOBs.splice(clickedDroppedLobIdx, 1);
-                        showToast(`Deleted Dropped LOB (Emitter #${delLob.displayId})`);
+                    if (clickedDroppedLob) {
+                        highlightESMRow(clickedDroppedLob.interceptId);
                         return;
                     }
 

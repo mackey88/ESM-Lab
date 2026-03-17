@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ELINT Simulator - Bulk Grading Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Drag and drop zone styling */
+        .dropzone {
+            transition: all 0.2s ease;
+        }
+        .dropzone.dragover {
+            background-color: #1e293b;
+            border-color: #38bdf8;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-slate-900 border-b border-slate-800 py-4 px-8 shadow-md flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-100 flex items-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M2 12h20"/><path d="m4.93 4.93 14.14 14.14"/><path d="m4.93 19.07 14.14-14.14"/><circle cx="12" cy="12" r="6"/></svg>
+                ELINT Bulk Grading Dashboard
+            </h1>
+            <p class="text-sm text-slate-400 mt-1">Automatically evaluate student JSON exports for Signals & AOP Accuracy</p>
+        </div>
+        <div class="flex gap-4">
+            <button id="btn-clear" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-sm font-medium transition-colors hidden">
+                Clear All Data
+            </button>
+            <button id="btn-export" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded text-sm font-medium text-white shadow-lg transition-colors hidden flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export CSV Gradebook
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow p-8 flex flex-col gap-6 max-w-7xl mx-auto w-full">
+        
+        <!-- Upload Zone -->
+        <div id="dropzone" class="dropzone border-2 border-dashed border-slate-600 rounded-xl p-10 flex flex-col items-center justify-center text-center cursor-pointer bg-slate-800/30 hover:bg-slate-800/60 relative">
+            <input type="file" id="file-input" multiple accept=".json" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-4"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg>
+            <h3 class="text-lg font-semibold text-slate-200">Drag & Drop JSON files here</h3>
+            <p class="text-sm text-slate-400 mt-2">or click anywhere in this box to browse files.</p>
+        </div>
+
+        <!-- Results Table -->
+        <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-xl overflow-hidden hidden" id="table-container">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse" id="results-table">
+                    <thead>
+                        <tr class="bg-slate-800 text-slate-300 text-sm uppercase tracking-wider border-b border-slate-700">
+                            <th class="p-4 font-semibold">Student Name</th>
+                            <th class="p-4 font-semibold">Submission Date</th>
+                            <th class="p-4 font-semibold text-center">AOPs Placed</th>
+                            <th class="p-4 font-semibold text-right">Total Score</th>
+                            <th class="p-4 font-semibold text-right">Final Grade</th>
+                            <th class="p-4 font-semibold text-center">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-body" class="text-sm divide-y divide-slate-800">
+                        <!-- Rows injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Details Modal -->
+    <div id="modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b border-slate-800 flex justify-between items-center">
+                <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><path d="m9 16 3-3 3 3"/></svg>
+                    Evaluation Breakdown: <span id="modal-student-name" class="text-sky-400"></span>
+                </h2>
+                <button id="close-modal" class="text-slate-400 hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-grow text-sm text-slate-300 space-y-6 custom-scrollbar" id="modal-content">
+                <!-- Content injected by JS -->
+            </div>
+
+            <div class="p-4 border-t border-slate-800 bg-slate-950 rounded-b-xl flex justify-end">
+                <button id="close-modal-btn" class="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded font-medium transition-colors">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State ---
+        let processedData = []; // Array of processed student objects
+
+        // --- DOM Elements ---
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
+        const tableContainer = document.getElementById('table-container');
+        const resultsBody = document.getElementById('results-body');
+        const btnClear = document.getElementById('btn-clear');
+        const btnExport = document.getElementById('btn-export');
+        
+        // Modal
+        const modal = document.getElementById('modal');
+        const modalStudentName = document.getElementById('modal-student-name');
+        const modalContent = document.getElementById('modal-content');
+        const closeModalIcon = document.getElementById('close-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+
+        // --- Event Listeners ---
+        
+        // Drag and drop events
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, () => dropzone.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, () => dropzone.classList.remove('dragover'), false);
+        });
+
+        dropzone.addEventListener('drop', handleDrop, false);
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files), false);
+
+        // Buttons
+        btnClear.addEventListener('click', clearData);
+        btnExport.addEventListener('click', exportCSV);
+        
+        // Modal
+        const closeModal = () => {
+            modal.classList.remove('opacity-100');
+            setTimeout(() => modal.classList.add('hidden'), 200);
+        };
+        closeModalIcon.addEventListener('click', closeModal);
+        closeModalBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+
+
+        // --- Core Logic ---
+
+        function handleDrop(e) {
+            let dt = e.dataTransfer;
+            let files = dt.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            if (files.length === 0) return;
+
+            Array.from(files).forEach(file => {
+                if (!file.name.endsWith('.json')) {
+                    alert(`Skipping ${file.name}: Not a JSON file.`);
+                    return;
+                }
+
+                let reader = new FileReader();
+                reader.readAsText(file);
+                reader.onloadend = () => {
+                    try {
+                        const json = JSON.parse(reader.result);
+                        processSubmission(json, file.name);
+                    } catch (err) {
+                        alert(`Error parsing ${file.name}: Invalid JSON format.`);
+                    }
+                }
+            });
+        }
+
+        function processSubmission(data, filename) {
+            // Validation: Ensure this is actually from the simulator
+            if (!data.studentName || !data.groundTruth || !data.userMeasurements || !data.aops) {
+                console.warn(`File ${filename} lacks required structure.`);
+                alert(`File ${filename} does not appear to be a valid ELINT export.`);
+                return;
+            }
+
+            // --- Helper: Haversine distance in Nautical Miles ---
+            const getDistanceNM = (lat1, lon1, lat2, lon2) => {
+                const R = 3440.065; 
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                          Math.sin(dLon/2) * Math.sin(dLon/2);
+                return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+            };
+
+            // --- Helper: Map precise names to Context Menu classes ---
+            const CLASS_MAPPING = {
+                "PLAN Type 055": "PLAN Type 055",
+                "PLAN Type 052D": "PLAN Type 052D",
+                "PLAN Type 054A": "PLAN Type 054A",
+                "VMF Sovremenny": "VMF Sovremenny",
+                "Coastal Defense Site": "Coastal Defense",
+                "USN Arleigh Burke": "USN Arleigh Burke",
+                "USN Carrier": "USN Carrier",
+                "E-3 Sentry (AWACS)": "Airborne (AWACS/AEW)",
+                "E-2C Hawkeye": "Airborne (AWACS/AEW)",
+                "F/A-18 CAP": "Airborne (Fighter)",
+                "J-20 CAP": "Airborne (Fighter)",
+                "Freighter A": "Commercial Vessel",
+                "Fishing Boat": "Commercial Vessel",
+                "Cruise Liner": "Commercial Vessel"
+            };
+
+            let totalAopScore = 0;
+            let aopFeedback = [];
+            let maxScore = data.groundTruth.length * 8; // 8 points possible per contact
+
+            // Match AOPs to Ground Truth ensuring the closest possible pairings without duplicates
+            let pairings = [];
+            data.aops.forEach((aop, aIdx) => {
+                let aopLat = parseFloat(aop.lat);
+                let aopLon = parseFloat(aop.lon);
+                data.groundTruth.forEach((gt, gIdx) => {
+                    let gtLat = parseFloat(gt.lat);
+                    let gtLon = parseFloat(gt.lon);
+                    
+                    // Fallback to pixel distance if lat/lon are missing in older JSONs
+                    let d = (!isNaN(aopLat) && !isNaN(gtLat)) 
+                        ? getDistanceNM(aopLat, aopLon, gtLat, gtLon) 
+                        : Math.sqrt((gt.x - aop.x)**2 + (gt.y - aop.y)**2) / 3.5; 
+
+                    pairings.push({aIdx, gIdx, d, gt, aop});
+                });
+            });
+
+            // Sort pairings by distance (closest matches graded first)
+            pairings.sort((a, b) => a.d - b.d);
+            
+            let claimedAOPs = new Set();
+            let claimedGTs = new Set();
+            let aopResults = new Array(data.aops.length);
+            
+            // Greedy assignment matching
+            pairings.forEach(pair => {
+                if (!claimedAOPs.has(pair.aIdx) && !claimedGTs.has(pair.gIdx)) {
+                    claimedAOPs.add(pair.aIdx);
+                    claimedGTs.add(pair.gIdx);
+                    aopResults[pair.aIdx] = pair;
+                }
+            });
+
+            // Handle extra AOPs that didn't get paired
+            data.aops.forEach((aop, aIdx) => {
+                if (!claimedAOPs.has(aIdx)) {
+                    aopResults[aIdx] = { gt: null, d: Infinity, aop: aop, extra: true };
+                }
+            });
+
+            // Grade pairings
+            aopResults.forEach((res, index) => {
+                if (res.extra) {
+                    aopFeedback.push({
+                        status: 'error',
+                        text: `<div class="font-medium">AOP ${index + 1} &rarr; Unmatched/Duplicate AOP placed.</div><div class="text-xs opacity-75 mt-1">Score: 0/8 pts</div>`,
+                        score: 0
+                    });
+                } else {
+                    let sma = parseFloat(res.aop.sma_nm) || 0;
+                    let smi = parseFloat(res.aop.smi_nm) || 0;
+                    let expectedClass = CLASS_MAPPING[res.gt.name] || res.gt.name;
+                    
+                    // 8-Point Rubric Calculation
+                    let ptsX = (sma < 5) ? 2 : 0;
+                    let ptsY = (smi < 5) ? 2 : 0;
+                    let ptsDist = (res.d < 5) ? 2 : 0;
+                    let ptsLabel = (res.aop.correlation === expectedClass) ? 2 : 0;
+                    
+                    let aopScore = ptsX + ptsY + ptsDist + ptsLabel;
+                    totalAopScore += aopScore;
+
+                    // Detail generation
+                    let feedbackDetails = [];
+                    feedbackDetails.push(ptsX === 2 ? `X-Rad < 5 (+2)` : `X-Rad &ge; 5 (0)`);
+                    feedbackDetails.push(ptsY === 2 ? `Y-Rad < 5 (+2)` : `Y-Rad &ge; 5 (0)`);
+                    feedbackDetails.push(ptsDist === 2 ? `Dist < 5NM (+2)` : `Dist &ge; 5NM (0)`);
+                    feedbackDetails.push(ptsLabel === 2 ? `Label Correct (+2)` : `Label Wrong: got '${res.aop.correlation || 'None'}', expected '${expectedClass}' (0)`);
+
+                    let status = aopScore === 8 ? 'correct' : (aopScore > 0 ? 'warning' : 'error');
+                    aopFeedback.push({
+                        status: status,
+                        text: `<div class="font-medium">AOP ${index + 1} &rarr; Assigned to ${res.gt.name} | Dist: ${res.d.toFixed(2)} NM | Score: ${aopScore}/8 pts</div><div class="text-xs opacity-75 mt-1">${feedbackDetails.join(' &bull; ')}</div>`,
+                        score: aopScore
+                    });
+                }
+            });
+
+            const record = {
+                id: Date.now() + Math.random().toString(36).substr(2, 5),
+                studentName: data.studentName,
+                filename: filename,
+                timestamp: new Date(data.timestamp).toLocaleString(),
+                score: totalAopScore,
+                maxScore: maxScore,
+                percentage: maxScore > 0 ? ((totalAopScore / maxScore) * 100).toFixed(1) : 0,
+                aopsTotalPlaced: data.aops.length,
+                maxAopsPossible: data.groundTruth.length,
+                aopFeedback: aopFeedback
+            };
+
+            // Avoid duplicates (if they upload the exact same file twice, we replace the old one)
+            const existingIndex = processedData.findIndex(p => p.studentName === record.studentName && p.timestamp === record.timestamp);
+            if (existingIndex >= 0) {
+                processedData[existingIndex] = record;
+            } else {
+                processedData.push(record);
+            }
+
+            // Show UI Elements
+            tableContainer.classList.remove('hidden');
+            btnClear.classList.remove('hidden');
+            btnExport.classList.remove('hidden');
+            dropzone.classList.replace('p-10', 'p-6'); // Shrink dropzone slightly
+
+            renderTable();
+        }
+
+        function renderTable() {
+            resultsBody.innerHTML = '';
+            
+            // Sort alphabetically by name
+            processedData.sort((a, b) => a.studentName.localeCompare(b.studentName));
+
+            processedData.forEach(record => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800/50 transition-colors group";
+                
+                // Color coding for grades
+                let gradeColor = "text-emerald-400";
+                if (record.percentage < 80) gradeColor = "text-yellow-400";
+                if (record.percentage < 65) gradeColor = "text-red-400";
+
+                tr.innerHTML = `
+                    <td class="p-4 font-medium text-slate-200">
+                        ${record.studentName}
+                        <div class="text-xs text-slate-500 font-normal mt-1">${record.filename}</div>
+                    </td>
+                    <td class="p-4 text-slate-400 text-xs mono">${record.timestamp}</td>
+                    <td class="p-4 mono text-center">
+                        <span class="text-sky-400">${record.aopsTotalPlaced}</span> 
+                        <span class="text-slate-500">/ ${record.maxAopsPossible}</span>
+                    </td>
+                    <td class="p-4 text-right mono font-medium">
+                        ${record.score} <span class="text-slate-500 text-xs">/ ${record.maxScore}</span>
+                    </td>
+                    <td class="p-4 text-right mono font-bold ${gradeColor}">
+                        ${record.percentage}%
+                    </td>
+                    <td class="p-4 text-center">
+                        <button class="px-3 py-1.5 bg-slate-800 border border-slate-600 rounded text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors btn-details" data-id="${record.id}">
+                            View Details
+                        </button>
+                    </td>
+                `;
+                resultsBody.appendChild(tr);
+            });
+
+            // Attach listeners to new buttons
+            document.querySelectorAll('.btn-details').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const record = processedData.find(r => r.id === e.target.getAttribute('data-id'));
+                    if (record) openDetailsModal(record);
+                });
+            });
+        }
+
+        function openDetailsModal(record) {
+            modalStudentName.innerText = record.studentName;
+            
+            let html = `
+                <div class="bg-slate-800/50 p-4 rounded border border-slate-700 mb-6">
+                    <h4 class="text-slate-400 text-xs uppercase mb-1">Total Score</h4>
+                    <div class="text-2xl font-bold mono text-sky-400">${record.score} <span class="text-sm text-slate-500">/ ${record.maxScore}</span></div>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="text-lg font-semibold text-white border-b border-slate-700 pb-2">Area of Probability (AOP) Analysis</h3>
+                    <ul class="space-y-2">
+            `;
+
+            if (record.aopFeedback.length === 0) {
+                html += `<li class="text-slate-500 italic">No AOPs were built in this submission.</li>`;
+            } else {
+                record.aopFeedback.forEach(fb => {
+                    let colorCls = "text-slate-400";
+                    let icon = `<circle cx="12" cy="12" r="10"/>`;
+                    
+                    if (fb.status === 'correct') {
+                        colorCls = "text-emerald-400 bg-emerald-400/10 border-emerald-400/20";
+                        icon = `<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>`;
+                    } else if (fb.status === 'warning') {
+                        colorCls = "text-yellow-400 bg-yellow-400/10 border-yellow-400/20";
+                        icon = `<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/>`;
+                    } else if (fb.status === 'error') {
+                        colorCls = "text-rose-400 bg-rose-400/10 border-rose-400/20";
+                        icon = `<circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/>`;
+                    }
+
+                    html += `
+                        <li class="flex items-start gap-3 p-3 rounded border ${colorCls}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 flex-shrink-0">${icon}</svg>
+                            <div class="w-full">${fb.text}</div>
+                        </li>
+                    `;
+                });
+            }
+
+            html += `
+                    </ul>
+                </div>
+            `;
+
+            modalContent.innerHTML = html;
+            
+            // Show modal
+            modal.classList.remove('hidden');
+            // Small delay to allow display block to apply before transition
+            setTimeout(() => modal.classList.add('opacity-100'), 10);
+        }
+
+        function exportCSV() {
+            if (processedData.length === 0) return;
+
+            // Generate CSV Headers
+            const headers = [
+                "Student Name",
+                "Submission Date",
+                "Filename",
+                "AOPs Placed",
+                "Total AOPs Possible",
+                "Raw Score",
+                "Max Score",
+                "Percentage (%)"
+            ];
+
+            let csvContent = headers.join(",") + "\n";
+
+            // Generate Rows
+            processedData.forEach(record => {
+                // Escape names/dates just in case they contain commas
+                const row = [
+                    `"${record.studentName.replace(/"/g, '""')}"`,
+                    `"${record.timestamp}"`,
+                    `"${record.filename}"`,
+                    record.aopsTotalPlaced,
+                    record.maxAopsPossible,
+                    record.score,
+                    record.maxScore,
+                    record.percentage
+                ];
+                
+                csvContent += row.join(",") + "\n";
+            });
+
+            // Trigger download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `elint_grades_export_${new Date().getTime()}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function clearData() {
+            if (confirm("Are you sure you want to clear all grading data from the dashboard?")) {
+                processedData = [];
+                renderTable();
+                tableContainer.classList.add('hidden');
+                btnClear.classList.add('hidden');
+                btnExport.classList.add('hidden');
+                dropzone.classList.replace('p-6', 'p-10');
+            }
+        }
+    </script>
+</body>
+</html>

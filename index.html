@@ -139,6 +139,7 @@
             border-color: #555;
             color: #555;
             cursor: not-allowed;
+            opacity: 0.5;
         }
 
         button.active {
@@ -267,42 +268,43 @@
             background-color: rgba(255, 255, 255, 0.05);
         }
 
-        /* Modal / Oscilloscope */
-        #modal-overlay {
+        /* Modals */
+        .modal-overlay {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.92);
-            z-index: 100;
-            justify-content: center;
-            align-items: center;
-            backdrop-filter: blur(3px);
-        }
-
-        /* Export & Platform Modal */
-        #export-modal, #platform-modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
             z-index: 200;
             justify-content: center;
             align-items: center;
-            backdrop-filter: blur(2px);
+            backdrop-filter: blur(5px);
         }
 
-        .export-content {
+        .modal-content {
             background: var(--panel-color);
             border: 1px solid var(--accent-blue);
-            padding: 20px;
+            padding: 25px;
             border-radius: 4px;
             display: flex;
             flex-direction: column;
             gap: 15px;
-            width: 300px;
-            box-shadow: 0 0 20px rgba(0, 210, 255, 0.2);
+            max-width: 600px;
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.15);
         }
 
+        #welcome-modal {
+            display: flex; /* Active on load */
+        }
+
+        .instruction-list {
+            color: #ddd;
+            line-height: 1.6;
+            font-size: 13px;
+        }
+        .instruction-list li { margin-bottom: 10px; }
+        .highlight { color: var(--accent-green); font-weight: bold; }
+
+        /* Analyzer View */
         #analyzer-view {
             width: 95%;
             max-width: 1200px;
@@ -397,7 +399,7 @@
             text-shadow: 0 0 5px rgba(0,255,65,0.5);
         }
 
-        select, input[type="number"] {
+        select, input[type="text"], input[type="number"] {
             background: #000;
             color: var(--accent-green);
             border: 1px solid #444;
@@ -406,7 +408,7 @@
             outline: none;
         }
         
-        select:focus, input[type="number"]:focus {
+        select:focus, input:focus {
             border-color: var(--accent-blue);
         }
 
@@ -505,83 +507,30 @@
 </head>
 <body>
 
-    <div id="top-bar">
-        <div class="control-group flight-controls">
-            <div class="heading-ctrl" title="Click and drag to set heading">
-                <div class="dial-container" id="hdg-dial">
-                    <div class="dial-pointer" id="hdg-pointer"></div>
-                </div>
-                <input type="number" id="hdg-input" class="hdg-input" value="000">
-            </div>
-            <div style="width: 1px; height: 30px; background: #333;"></div>
-            <div class="slider-ctrl">
-                <label>SPD: <span id="spd-val">400</span> KT</label>
-                <input type="range" id="spd-slider" min="200" max="800" step="10" value="400">
-            </div>
-            <div class="slider-ctrl">
-                <label>ALT: <span id="alt-val">32000</span> FT</label>
-                <input type="range" id="alt-slider" min="500" max="40000" step="500" value="32000">
-            </div>
-        </div>
-        <div class="control-group" style="margin-left: 10px;">
-            <button id="btn-platform-library" style="border-color: var(--accent-blue); color: var(--accent-blue);">PLATFORM LIBRARY</button>
-            <button id="btn-export">Export Grading Data</button>
-            <button id="btn-aop-mode" title="Toggle AOP Building">BUILD AOP</button>
-            <button id="btn-confirm-aop" style="display: none;">CONFIRM AOP (0/3)</button>
-        </div>
-        <div style="flex-grow: 1; text-align: right; font-weight: bold; color: var(--accent-blue); letter-spacing: 1px;">
-            ELINT OPS CENTER // SIMULATOR ACTIVE
-        </div>
-    </div>
+    <div id="welcome-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 style="color: var(--accent-blue); text-align: center; margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 10px;">TACTICAL ELINT SIMULATOR</h2>
+            <p style="font-size: 13px; color: #aaa; text-align: center; margin-top: -10px;">OPERATOR BRIEFING & INITIALIZATION</p>
+            
+            <ul class="instruction-list">
+                <li><span class="highlight">MISSION:</span> There are <span class="highlight">6 Hostile Targets</span> operating in this sector (4 Surface Combatants, 1 Fighter Patrol, 1 Coastal Defense Site).</li>
+                <li><span class="highlight">ANALYZE:</span> Isolate unknown emitters. Use the oscilloscope to measure PRI and PW to classify the signal identity.</li>
+                <li><span class="highlight">GEOLOCATE:</span> Drop Lines of Bearing (LOBs). You must select at least <span class="highlight">3 intersecting LOBs</span> from the same emitter to calculate an Area of Probability (AOP).</li>
+                <li><span class="highlight">EVALUATION:</span> To receive full credit for a geolocation, your AOP's Semi-Major and Semi-Minor axes must be <span class="highlight">less than 5.0 NM</span>.</li>
+                <li><span class="highlight">SYSTEM OVERRIDE:</span> After you successfully classify 5 distinct emitters manually, the combat system will unlock Auto-Identification for the remainder of the exercise.</li>
+                <li><span class="highlight">LINK 16:</span> Friendly Blue Force tracks (Carrier Strike Group & CAP) are transmitting Link 16 data and will appear as blue tactical symbols on your plot.</li>
+            </ul>
 
-    <div id="main-container">
-        <div id="tacplot-container">
-            <canvas id="tacplot"></canvas>
-            <div class="hud-overlay">
-                LAT: <span id="hud-lat">25.122 N</span><br>
-                LON: <span id="hud-lon">121.560 E</span><br>
-                ALT: <span id="hud-alt">32,000 FT</span>
+            <div class="input-box" style="margin-top: 10px;">
+                <label>ENTER STUDENT IDENTIFIER TO BEGIN</label>
+                <input type="text" id="startup-name-input" placeholder="Rank / Last Name" style="padding: 12px; font-size: 16px; text-align: center;">
             </div>
             
-            <!-- AOP Telemetry Panel -->
-            <div id="aop-details-overlay" class="hud-overlay" style="display: none;">
-                <div style="color: var(--accent-blue); border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 5px; font-weight: bold; letter-spacing: 1px;">AOP TELEMETRY</div>
-                LAT: <span id="aop-lat">--</span><br>
-                LON: <span id="aop-lon">--</span><br>
-                SMA (Maj): <span id="aop-sma">--</span> NM<br>
-                SMI (Min): <span id="aop-smi">--</span> NM<br>
-                ORNT: <span id="aop-ori">--</span>°
-            </div>
-
-            <div id="toast-container"></div>
-        </div>
-
-        <!-- Draggable Resizer -->
-        <div id="resizer" title="Drag to resize"></div>
-
-        <div id="esm-panel">
-            <table>
-                <thead>
-                    <tr>
-                        <th width="5%">ID</th>
-                        <th width="8%">VISIBLE</th>
-                        <th width="17%">EMITTER NAME</th>
-                        <th width="10%">BEARING</th>
-                        <th width="10%">FREQ (GHz)</th>
-                        <th width="10%">PRI (µs)</th>
-                        <th width="10%">PW (µs)</th>
-                        <th width="30%">ACTIONS</th>
-                    </tr>
-                </thead>
-                <tbody id="esm-body">
-                    <!-- Dynamic Content -->
-                </tbody>
-            </table>
+            <button id="btn-start-sim" style="padding: 15px; font-size: 14px; margin-top: 10px;" disabled>START SIMULATION</button>
         </div>
     </div>
 
-    <!-- Analyzer Modal -->
-    <div id="modal-overlay">
+    <div id="modal-overlay" class="modal-overlay" style="z-index: 100;">
         <div id="analyzer-view">
             <h2 style="color: var(--accent-green); margin: 0 0 10px 0; display: flex; justify-content: space-between; font-size: 16px; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px;">
                 <div style="letter-spacing: 1px;">SIGNAL ANALYZER - PARAMETER EXTRACTION</div>
@@ -618,8 +567,7 @@
                             </tr>
                         </thead>
                         <tbody id="library-body">
-                            <!-- Populated by JS -->
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
 
@@ -639,8 +587,7 @@
                         <label>SELECT RADAR IDENTITY</label>
                         <select id="emitter-select">
                             <option value="">-- CLASSIFY EMITTER --</option>
-                            <!-- Populated by JS -->
-                        </select>
+                            </select>
                     </div>
 
                     <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
@@ -653,24 +600,8 @@
         </div>
     </div>
 
-    <!-- Export Student Info Modal -->
-    <div id="export-modal">
-        <div class="export-content">
-            <h3 style="color: var(--accent-blue); margin-top: 0; text-align: center; font-size: 14px; letter-spacing: 1px;">EXPORT GRADING DATA</h3>
-            <div class="input-box">
-                <label>STUDENT NAME / IDENTIFIER</label>
-                <input type="text" id="student-name-input" placeholder="e.g., John Doe" style="padding: 10px; font-size: 14px;">
-            </div>
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button id="btn-confirm-export" style="flex: 1;">DOWNLOAD</button>
-                <button id="btn-cancel-export" class="danger" style="flex: 1;">CANCEL</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Platform Library Modal -->
-    <div id="platform-modal">
-        <div class="export-content" style="width: 500px; max-height: 80vh;">
+    <div id="platform-modal" class="modal-overlay">
+        <div class="modal-content" style="width: 500px; max-height: 80vh;">
             <h3 style="color: var(--accent-blue); margin-top: 0; text-align: center; font-size: 14px; letter-spacing: 1px;">PLATFORM & EMITTER REFERENCE</h3>
             <div style="overflow-y: auto; flex: 1; border: 1px solid #333; margin-bottom: 10px;">
                 <table class="library-table">
@@ -681,8 +612,7 @@
                         </tr>
                     </thead>
                     <tbody id="platform-library-body">
-                        <!-- Populated by JS -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
             <div style="display: flex; justify-content: center;">
@@ -691,7 +621,78 @@
         </div>
     </div>
 
-    <!-- Context Menu -->
+    <div id="top-bar">
+        <div class="control-group flight-controls">
+            <div class="heading-ctrl" title="Click and drag to set heading">
+                <div class="dial-container" id="hdg-dial">
+                    <div class="dial-pointer" id="hdg-pointer"></div>
+                </div>
+                <input type="number" id="hdg-input" class="hdg-input" value="000">
+            </div>
+            <div style="width: 1px; height: 30px; background: #333;"></div>
+            <div class="slider-ctrl">
+                <label>SPD: <span id="spd-val">400</span> KT</label>
+                <input type="range" id="spd-slider" min="200" max="800" step="10" value="400">
+            </div>
+            <div class="slider-ctrl">
+                <label>ALT: <span id="alt-val">32000</span> FT</label>
+                <input type="range" id="alt-slider" min="500" max="40000" step="500" value="32000">
+            </div>
+        </div>
+        <div class="control-group" style="margin-left: 10px;">
+            <button id="btn-platform-library" style="border-color: var(--accent-blue); color: var(--accent-blue);">PLATFORM LIBRARY</button>
+            <button id="btn-export">Export Grading Data</button>
+            <button id="btn-aop-mode" title="Toggle AOP Building">BUILD AOP</button>
+            <button id="btn-confirm-aop" style="display: none;">CONFIRM AOP (0/3)</button>
+        </div>
+        <div style="flex-grow: 1; text-align: right; font-weight: bold; color: var(--accent-blue); letter-spacing: 1px;">
+            ELINT OPS CENTER // <span id="student-name-display" style="color: #fff;">STANDBY</span>
+        </div>
+    </div>
+
+    <div id="main-container">
+        <div id="tacplot-container">
+            <canvas id="tacplot"></canvas>
+            <div class="hud-overlay">
+                LAT: <span id="hud-lat">25.122 N</span><br>
+                LON: <span id="hud-lon">121.560 E</span><br>
+                ALT: <span id="hud-alt">32,000 FT</span>
+            </div>
+            
+            <div id="aop-details-overlay" class="hud-overlay" style="display: none;">
+                <div style="color: var(--accent-blue); border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 5px; font-weight: bold; letter-spacing: 1px;">AOP TELEMETRY</div>
+                LAT: <span id="aop-lat">--</span><br>
+                LON: <span id="aop-lon">--</span><br>
+                SMA (Maj): <span id="aop-sma">--</span> NM<br>
+                SMI (Min): <span id="aop-smi">--</span> NM<br>
+                ORNT: <span id="aop-ori">--</span>°
+            </div>
+
+            <div id="toast-container"></div>
+        </div>
+
+        <div id="resizer" title="Drag to resize"></div>
+
+        <div id="esm-panel">
+            <table>
+                <thead>
+                    <tr>
+                        <th width="5%">ID</th>
+                        <th width="8%">VISIBLE</th>
+                        <th width="17%">EMITTER NAME</th>
+                        <th width="10%">BEARING</th>
+                        <th width="10%">FREQ (GHz)</th>
+                        <th width="10%">PRI (µs)</th>
+                        <th width="10%">PW (µs)</th>
+                        <th width="30%">ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody id="esm-body">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
     <div id="context-menu">
         <div class="menu-item" data-class="PLAN Type 055">Class: PLAN Type 055</div>
         <div class="menu-item" data-class="PLAN Type 052D">Class: PLAN Type 052D</div>
@@ -707,7 +708,6 @@
     </div>
 
     <script>
-        // Encapsulate everything in an IIFE to prevent global namespace pollution
         (() => {
             // --- CONSTANTS & DATA DICTIONARY ---
             const RADAR_PROFILES = {
@@ -763,27 +763,29 @@
             ];
 
             const SCENARIO_ENTITIES = [
-                { id: 'E1', name: 'PLAN Type 055', x: 150, y: 250, alt: 100, radars: ["Type 346B Search", "Type 364 Mod 1", "Type 366 Mod 2"] },
-                { id: 'E2', name: 'PLAN Type 052D', x: 200, y: 150, alt: 80, radars: ["Type 346 Dragon Eye", "Type 364 Seagull C", "Type 366 Band Stand"] },
-                { id: 'E3', name: 'PLAN Type 054A', x: 250, y: 350, alt: 70, radars: ["Type 382 Top Knot", "Type 366 Band Stand", "Type 344 Fire Control"] },
-                { id: 'E4', name: 'VMF Sovremenny', x: 100, y: 450, alt: 60, radars: ["MR-710 Top Steer", "Type 366 Mod 2"] },
-                { id: 'E5', name: 'Freighter A', x: 400, y: 250, alt: 50, radars: ["Furuno FAR-2218", "Raymarine Pathfinder"] },
-                { id: 'E6', name: 'Fishing Boat', x: 500, y: 500, alt: 20, radars: ["HALO-6 Navigation"] },
-                { id: 'E7', name: 'Coastal Defense Site', x: 50, y: 200, alt: 150, radars: ["Type 517M Search", "Tombstone Flap Lid"] },
-                { id: 'E8', name: 'USN Arleigh Burke', x: 850, y: 650, alt: 80, radars: ["AN/SPY-1D", "AN/SPS-67", "AN/SPS-73"] },
-                { id: 'E9', name: 'USN Carrier', x: 950, y: 600, alt: 150, radars: ["AN/SPY-6(V)1", "AN/SPS-49", "AN/SPS-73"] },
-                { id: 'E10', name: 'E-3 Sentry (AWACS)', x: 800, y: 400, alt: 30000, radars: ["AN/APY-1 (AWACS)"] },
-                { id: 'E11', name: 'E-2C Hawkeye', x: 750, y: 800, alt: 25000, radars: ["AN/APS-145 (AEW)"] },
-                { id: 'E12', name: 'F/A-18 CAP', x: 650, y: 500, alt: 22000, radars: ["AN/APG-79"] },
-                { id: 'E13', name: 'J-20 CAP', x: 300, y: 200, alt: 28000, radars: ["Type 1475"] },
-                { id: 'E14', name: 'Cruise Liner', x: 450, y: 750, alt: 120, radars: ["JRC JMA-9122", "Garmin Cyclone"] }
+                { id: 'E1', name: 'PLAN Type 055', affiliation: 'hostile', domain: 'surface', x: 150, y: 250, alt: 100, radars: ["Type 346B Search", "Type 364 Mod 1", "Type 366 Mod 2"] },
+                { id: 'E2', name: 'PLAN Type 052D', affiliation: 'hostile', domain: 'surface', x: 200, y: 150, alt: 80, radars: ["Type 346 Dragon Eye", "Type 364 Seagull C", "Type 366 Band Stand"] },
+                { id: 'E3', name: 'PLAN Type 054A', affiliation: 'hostile', domain: 'surface', x: 250, y: 350, alt: 70, radars: ["Type 382 Top Knot", "Type 366 Band Stand", "Type 344 Fire Control"] },
+                { id: 'E4', name: 'VMF Sovremenny', affiliation: 'hostile', domain: 'surface', x: 100, y: 450, alt: 60, radars: ["MR-710 Top Steer", "Type 366 Mod 2"] },
+                { id: 'E5', name: 'Freighter A', affiliation: 'neutral', domain: 'surface', x: 400, y: 250, alt: 50, radars: ["Furuno FAR-2218", "Raymarine Pathfinder"] },
+                { id: 'E6', name: 'Fishing Boat', affiliation: 'neutral', domain: 'surface', x: 500, y: 500, alt: 20, radars: ["HALO-6 Navigation"] },
+                { id: 'E7', name: 'Coastal Defense Site', affiliation: 'hostile', domain: 'land', x: 50, y: 200, alt: 150, radars: ["Type 517M Search", "Tombstone Flap Lid"] },
+                { id: 'E8', name: 'USN Arleigh Burke', affiliation: 'friendly', domain: 'surface', x: 850, y: 650, alt: 80, radars: ["AN/SPY-1D", "AN/SPS-67", "AN/SPS-73"] },
+                { id: 'E9', name: 'USN Carrier', affiliation: 'friendly', domain: 'surface', x: 950, y: 600, alt: 150, radars: ["AN/SPY-6(V)1", "AN/SPS-49", "AN/SPS-73"] },
+                { id: 'E10', name: 'E-3 Sentry (AWACS)', affiliation: 'friendly', domain: 'air', x: 800, y: 400, alt: 30000, radars: ["AN/APY-1 (AWACS)"] },
+                { id: 'E11', name: 'E-2C Hawkeye', affiliation: 'friendly', domain: 'air', x: 750, y: 800, alt: 25000, radars: ["AN/APS-145 (AEW)"] },
+                { id: 'E12', name: 'F/A-18 CAP', affiliation: 'friendly', domain: 'air', x: 650, y: 500, alt: 22000, radars: ["AN/APG-79"] },
+                { id: 'E13', name: 'J-20 CAP', affiliation: 'hostile', domain: 'air', x: 300, y: 200, alt: 28000, radars: ["Type 1475"] },
+                { id: 'E14', name: 'Cruise Liner', affiliation: 'neutral', domain: 'surface', x: 450, y: 750, alt: 120, radars: ["JRC JMA-9122", "Garmin Cyclone"] }
             ];
 
             // --- APP STATE ---
             const state = {
+                studentName: "",
                 ownship: { x: 700, y: 600, heading: 0, speed: 0.1, speedKnots: 400, altitude: 32000 },
                 interceptCounter: 1,
                 activeIntercepts: [],
+                hiddenEmitters: new Set(), // Persists hidden preference by ID
                 userMeasurements: {},
                 droppedLOBs: [],
                 aops: [],
@@ -859,11 +861,10 @@
                 els.toastContainer = document.getElementById('toast-container');
                 els.aopDetailsOverlay = document.getElementById('aop-details-overlay');
 
-                // Export Modal Elements
-                els.exportModal = document.getElementById('export-modal');
-                els.studentNameInput = document.getElementById('student-name-input');
-                els.btnConfirmExport = document.getElementById('btn-confirm-export');
-                els.btnCancelExport = document.getElementById('btn-cancel-export');
+                // Welcome Modal Elements
+                els.welcomeModal = document.getElementById('welcome-modal');
+                els.startupNameInput = document.getElementById('startup-name-input');
+                els.btnStartSim = document.getElementById('btn-start-sim');
 
                 // Platform Library Modal Elements
                 els.platformModal = document.getElementById('platform-modal');
@@ -873,6 +874,18 @@
                 window.addEventListener('resize', resizeCanvas);
                 resizeCanvas();
                 populateLibrary();
+
+                // Startup Logic
+                els.startupNameInput.addEventListener('input', (e) => {
+                    els.btnStartSim.disabled = e.target.value.trim().length === 0;
+                });
+                
+                els.btnStartSim.addEventListener('click', () => {
+                    state.studentName = els.startupNameInput.value.trim();
+                    document.getElementById('student-name-display').innerText = `OP: ${state.studentName.toUpperCase()}`;
+                    els.welcomeModal.style.display = 'none';
+                    state.gameAnimId = requestAnimationFrame(gameLoop);
+                });
 
                 // Flight Control Bindings
                 function updateHeading(deg) {
@@ -922,7 +935,6 @@
                     });
                 }
 
-                // Library Row Click Auto-fill
                 els.libraryBody.addEventListener('click', (e) => {
                     const tr = e.target.closest('tr');
                     if (tr && tr.dataset.key) {
@@ -933,30 +945,15 @@
                 els.btnAopMode.addEventListener('click', toggleAOPMode);
                 els.btnConfirmAop.addEventListener('click', confirmAOP);
                 
-                // Platform Library Logic
                 els.btnPlatformLibrary.addEventListener('click', () => {
                     els.platformModal.style.display = 'flex';
                 });
-                
                 els.btnClosePlatformModal.addEventListener('click', () => {
                     els.platformModal.style.display = 'none';
                 });
 
-                // Export Logic
                 els.btnExport.addEventListener('click', () => {
-                    els.studentNameInput.value = ''; 
-                    els.exportModal.style.display = 'flex';
-                    els.studentNameInput.focus();
-                });
-
-                els.btnCancelExport.addEventListener('click', () => {
-                    els.exportModal.style.display = 'none';
-                });
-
-                els.btnConfirmExport.addEventListener('click', () => {
-                    const studentName = els.studentNameInput.value.trim() || "Anonymous_Student";
-                    exportData(studentName);
-                    els.exportModal.style.display = 'none';
+                    exportData();
                 });
                 
                 els.btnCloseAnalyzer.addEventListener('click', closeAnalyzer);
@@ -976,7 +973,6 @@
 
                 els.tacCanvas.addEventListener('mousedown', handleTacClick);
 
-                // Setup Context Menu Events
                 document.querySelectorAll('.menu-item').forEach(item => {
                     item.addEventListener('click', (e) => {
                         const shipClass = e.target.getAttribute('data-class');
@@ -984,11 +980,9 @@
                     });
                 });
 
-                // ESM Table action delegation
                 els.esmBody.addEventListener('click', handleEsmActions);
                 els.esmBody.addEventListener('change', handleEsmActions);
 
-                // Resizer Drag Logic using Pointer Events
                 els.resizer.addEventListener('pointerdown', (e) => {
                     e.preventDefault(); 
                     state.isResizing = true;
@@ -1030,7 +1024,7 @@
                     }
                 });
 
-                state.gameAnimId = requestAnimationFrame(gameLoop);
+                // Do not start game loop until name is entered (handled in btnStartSim click)
             });
 
             function populateLibrary() {
@@ -1048,7 +1042,6 @@
                     libraryBody.insertAdjacentHTML('beforeend', row);
                 });
 
-                // Populate the dropdown alphabetically
                 const alphaKeys = Object.keys(RADAR_PROFILES).sort((a, b) => a.localeCompare(b));
                 alphaKeys.forEach(key => {
                     const opt = document.createElement('option');
@@ -1057,7 +1050,6 @@
                     els.emitterSelect.appendChild(opt);
                 });
 
-                // Populate the new Platform Library modal
                 const platformBody = document.getElementById('platform-library-body');
                 PLATFORM_LIBRARY.forEach(plat => {
                     const row = `<tr>
@@ -1103,8 +1095,6 @@
                     const dy = entity.y - state.ownship.y;
                     const dist = Math.sqrt(dx*dx + dy*dy);
 
-                    // Radar Horizon Formula: 1.23 * (sqrt(h1) + sqrt(h2)) in NM
-                    // Scale factor of 3.5 applied to map pixel space
                     const radarHorizonNM = 1.23 * (Math.sqrt(state.ownship.altitude) + Math.sqrt(entity.alt));
                     const detectionRange = radarHorizonNM * 3.5;
 
@@ -1116,12 +1106,15 @@
                             const bearing = (Math.atan2(dy, dx) * 180 / Math.PI + 90 + 360) % 360;
                             
                             if (!existing) {
+                                // Apply persistent visibility check
+                                const isVisible = !state.hiddenEmitters.has(uniqueId);
+                                
                                 state.activeIntercepts.push({
                                     id: uniqueId, 
                                     displayId: state.interceptCounter++,
                                     radarKey: rKey, 
                                     bearing: bearing, 
-                                    showLOB: true, 
+                                    showLOB: isVisible, 
                                     identified: false
                                 });
                             } else {
@@ -1174,9 +1167,35 @@
                 ctx.moveTo(600, 200); ctx.lineTo(750, 350); ctx.lineTo(720, 600); ctx.lineTo(550, 550); ctx.closePath();
                 ctx.stroke();
 
+                // Link 16 Friendly Symbology
+                SCENARIO_ENTITIES.forEach(entity => {
+                    if (entity.affiliation === 'friendly') {
+                        ctx.beginPath();
+                        ctx.strokeStyle = varToColor('--accent-blue');
+                        ctx.lineWidth = 2;
+                        
+                        if (entity.domain === 'air') {
+                            // Friendly Airborne (Arch / Semi-circle)
+                            ctx.arc(entity.x, entity.y, 10, Math.PI, 0);
+                            ctx.lineTo(entity.x - 10, entity.y); 
+                            ctx.stroke();
+                        } else {
+                            // Friendly Surface (Circle)
+                            ctx.arc(entity.x, entity.y, 10, 0, Math.PI * 2);
+                            ctx.stroke();
+                        }
+                        
+                        // Center dot
+                        ctx.beginPath();
+                        ctx.fillStyle = varToColor('--accent-blue');
+                        ctx.arc(entity.x, entity.y, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+
                 // Static Dropped LOBs
                 state.droppedLOBs.forEach(lob => {
-                    const parentIntercept = state.activeIntercepts.find(i => i.displayId === lob.displayId);
+                    const parentIntercept = state.activeIntercepts.find(i => i.id === lob.interceptId);
                     if (parentIntercept && !parentIntercept.showLOB) return;
 
                     const isSelectedForAOP = state.aopBuildingMode && state.selectedLOBs.includes(lob);
@@ -1194,7 +1213,7 @@
                     ctx.lineTo(lob.x + Math.cos(rad) * lobLength, lob.y + Math.sin(rad) * lobLength);
                     ctx.stroke();
 
-                    // Draw Text ID and Time along the line
+                    // Draw Text ID and Time
                     const textDist = 450; 
                     const tx = lob.x + Math.cos(rad) * textDist;
                     const ty = lob.y + Math.sin(rad) * textDist;
@@ -1202,7 +1221,6 @@
                     ctx.save();
                     ctx.translate(tx, ty);
                     
-                    // Keep text upright
                     let textRad = rad;
                     if (Math.cos(rad) < 0) {
                         textRad += Math.PI;
@@ -1258,7 +1276,6 @@
                     if (aop.correlation) {
                         ctx.save();
                         ctx.translate(aop.x, aop.y);
-                        // Prevent upside-down text if ellipse is rotated past vertical
                         let textRot = rot;
                         if (textRot > Math.PI/2 || textRot < -Math.PI/2) textRot += Math.PI;
                         ctx.rotate(textRot);
@@ -1290,7 +1307,6 @@
 
             // --- ESM LOGIC ---
             function updateESMTable() {
-                // Sort array: active (visible) intercepts first, then by ID
                 const sortedIntercepts = [...state.activeIntercepts].sort((a, b) => {
                     if (a.showLOB !== b.showLOB) return a.showLOB ? -1 : 1;
                     return a.displayId - b.displayId;
@@ -1343,7 +1359,6 @@
                 const target = e.target;
                 const tr = target.closest('tr');
                 
-                // Track Row Selection
                 if (tr && tr.id.startsWith('row-')) {
                     const rowId = tr.id.replace('row-', '');
                     if (state.selectedInterceptId !== rowId) {
@@ -1360,15 +1375,17 @@
                     const intercept = state.activeIntercepts.find(x => x.id === id);
                     if (intercept) {
                         intercept.showLOB = target.checked;
+                        if (!target.checked) {
+                            state.hiddenEmitters.add(id); // Persist hide
+                        } else {
+                            state.hiddenEmitters.delete(id); // Persist unhide
+                        }
                         state.esmListHash = ""; 
                     }
                 } else if (target.classList.contains('btn-drop-lob')) {
                     const intercept = state.activeIntercepts.find(x => x.id === id);
                     if (intercept) {
                         const timeStr = new Date().toTimeString().substring(0, 5); 
-                        
-                        // Realistic LOB Error injection (+/- 0.75 degrees)
-                        // This prevents perfect mathematical intersections so AOP PCA math calculates dynamic shapes
                         const sensorError = (Math.random() * 1.5) - 0.75;
                         const finalBearing = (intercept.bearing + sensorError + 360) % 360;
 
@@ -1407,9 +1424,7 @@
                 els.modal.style.display = 'flex';
                 
                 resizeCanvas();
-                
                 state.scope.offset = 0;
-                
                 startScopeAnimation();
             }
 
@@ -1552,7 +1567,6 @@
                         ctx.stroke();
                     }
 
-                    // --- Measurement Overlay Rendering ---
                     if (state.scope.measurementMode) {
                         ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
                         ctx.setLineDash([2, 4]);
@@ -1603,7 +1617,6 @@
                     els.feedbackPanel.style.backgroundColor = varToColor('--accent-green');
                     els.feedbackPanel.style.borderColor = varToColor('--accent-green');
                 }
-                
                 setTimeout(resetFeedback, 3000);
             }
             
@@ -1679,10 +1692,10 @@
                 const dx2 = Math.cos(rad2), dy2 = Math.sin(rad2);
 
                 const det = dx1 * dy2 - dy1 * dx2;
-                if (Math.abs(det) < 0.001) return null; // Parallel
+                if (Math.abs(det) < 0.001) return null; 
 
                 const t1 = ((l2.x - l1.x) * dy2 - (l2.y - l1.y) * dx2) / det;
-                if (t1 < 0) return null; // Behind ownship
+                if (t1 < 0) return null; 
                 
                 return { x: l1.x + t1 * dx1, y: l1.y + t1 * dy1 };
             }
@@ -1727,7 +1740,6 @@
                     }
 
                 } else {
-                    // Assign Ship Class to existing AOP / Open Context Menu
                     const clickedIdx = state.aops.findIndex(a => {
                         const rx = a.radiusX || a.radius || 30;
                         const ry = a.radiusY || a.radius || 30;
@@ -1740,12 +1752,11 @@
                         els.contextMenu.style.left = e.clientX + 'px'; 
                         els.contextMenu.style.top = e.clientY + 'px';
                         
-                        // Populate and show AOP details overlay
                         const aop = state.aops[clickedIdx];
                         document.getElementById('aop-lat').innerText = (25.122 + (aop.y / -10000)).toFixed(3) + " N";
                         document.getElementById('aop-lon').innerText = (121.560 + (aop.x / 10000)).toFixed(3) + " E";
-                        document.getElementById('aop-sma').innerText = (aop.radiusX / 3.5).toFixed(1);
-                        document.getElementById('aop-smi').innerText = (aop.radiusY / 3.5).toFixed(1);
+                        document.getElementById('aop-sma').innerText = (aop.radiusX / 3.5).toFixed(2);
+                        document.getElementById('aop-smi').innerText = (aop.radiusY / 3.5).toFixed(2);
                         
                         let deg = (aop.rotation * 180 / Math.PI + 90 + 360) % 180;
                         document.getElementById('aop-ori').innerText = deg.toFixed(1).padStart(5, '0');
@@ -1757,7 +1768,6 @@
                         els.aopDetailsOverlay.style.display = 'none';
                     }
 
-                    // Check for Active LOB click
                     let clickedActiveLob = null;
                     let minD = 20;
                     state.activeIntercepts.forEach(intercept => {
@@ -1780,11 +1790,10 @@
                         return;
                     }
 
-                    // Check for Dropped LOB click
                     let clickedDroppedLob = null;
                     minD = 20;
                     state.droppedLOBs.forEach((lob) => {
-                        const parentIntercept = state.activeIntercepts.find(i => i.displayId === lob.displayId);
+                        const parentIntercept = state.activeIntercepts.find(i => i.id === lob.interceptId);
                         if (parentIntercept && !parentIntercept.showLOB) return;
 
                         const rad = (lob.bearing - 90) * (Math.PI / 180);
@@ -1805,7 +1814,6 @@
                         return;
                     }
 
-                    // Clicked empty space: clear selection
                     if (state.selectedInterceptId !== null) {
                         state.selectedInterceptId = null;
                         state.esmListHash = "";
@@ -1835,7 +1843,6 @@
                 cx /= intersections.length;
                 cy /= intersections.length;
 
-                // PCA Covariance Matrix to determine ellipse orientation and axes dynamically
                 let cxx = 0, cyy = 0, cxy = 0;
                 intersections.forEach(p => {
                     let dx = p.x - cx;
@@ -1848,18 +1855,15 @@
                 cyy /= intersections.length;
                 cxy /= intersections.length;
 
-                // Eigenvalues determine spread/variance along the main axes
                 let d = Math.sqrt(Math.pow((cxx - cyy) / 2, 2) + cxy * cxy);
                 let lambda1 = (cxx + cyy) / 2 + d;
                 let lambda2 = (cxx + cyy) / 2 - d;
 
-                // Angle of principal eigenvector (ellipse orientation)
                 let theta = 0;
                 if (cxx !== cyy || cxy !== 0) {
                     theta = 0.5 * Math.atan2(2 * cxy, cxx - cyy);
                 }
 
-                // Scale variance into pixel radius, with a firm minimum so perfect cuts don't disappear
                 let rx = Math.max(10, Math.sqrt(lambda1) * 2.0);
                 let ry = Math.max(10, Math.sqrt(lambda2) * 2.0);
 
@@ -1940,24 +1944,52 @@
                 }, 3000);
             }
 
-            function exportData(studentName) {
+            function exportData() {
+                if (!state.studentName) {
+                    showToast("Error: No student identifier set.", "error");
+                    return;
+                }
+
+                // Map AOPs to export NM scaled radii and precise Lat/Lon
+                const exportedAOPs = state.aops.map(a => ({
+                    x: a.x, y: a.y,
+                    lat: (25.122 + (a.y / -10000)).toFixed(5),
+                    lon: (121.560 + (a.x / 10000)).toFixed(5),
+                    sma_nm: parseFloat((a.radiusX / 3.5).toFixed(2)),
+                    smi_nm: parseFloat((a.radiusY / 3.5).toFixed(2)),
+                    rotation: a.rotation,
+                    correlation: a.correlation
+                }));
+
+                // Ground Truth restricted specifically to Hostile targets for grading validation
+                const hostileTargets = SCENARIO_ENTITIES
+                    .filter(e => e.affiliation === 'hostile')
+                    .map(e => ({
+                        id: e.id,
+                        name: e.name,
+                        lat: (25.122 + (e.y / -10000)).toFixed(5),
+                        lon: (121.560 + (e.x / 10000)).toFixed(5),
+                        radars: e.radars
+                    }));
+
                 const data = { 
-                    studentName: studentName,
+                    studentName: state.studentName,
                     timestamp: new Date().toISOString(), 
                     score: Object.keys(state.userMeasurements).length,
                     userMeasurements: state.userMeasurements, 
-                    aops: state.aops,
-                    groundTruth: SCENARIO_ENTITIES 
+                    aops: exportedAOPs,
+                    groundTruth: hostileTargets 
                 };
+                
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                 const a = document.createElement('a'); 
                 a.href = URL.createObjectURL(blob); 
                 
-                const safeName = studentName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                const safeName = state.studentName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
                 a.download = `elint_grading_${safeName}_${Date.now()}.json`; 
                 a.click();
                 
-                showToast(`Grading data exported for ${studentName}`, "success");
+                showToast(`Grading data exported for ${state.studentName}`, "success");
             }
 
             function varToColor(v) { 

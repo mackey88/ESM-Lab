@@ -164,8 +164,8 @@
             display: flex;
             flex-direction: column;
             position: relative;
-            min-height: 0; /* FIX: Allows flexbox to shrink properly */
-            overflow: hidden; /* FIX: Prevents container from stretching page */
+            min-height: 0; 
+            overflow: hidden; 
         }
 
         #tacplot-container {
@@ -173,7 +173,7 @@
             background: radial-gradient(circle at center, #111 0%, #050505 100%);
             position: relative;
             overflow: hidden;
-            min-height: 0; /* FIX: Allows flexbox to shrink properly */
+            min-height: 0; 
         }
 
         #tacplot-container.aop-active {
@@ -194,7 +194,7 @@
             align-items: center;
             z-index: 15;
             transition: background-color 0.2s;
-            touch-action: none; /* Prevent mobile scrolling while dragging */
+            touch-action: none; 
         }
         
         #resizer:hover, #resizer.active {
@@ -224,7 +224,7 @@
             background-color: var(--panel-color);
             border-top: 2px solid var(--accent-blue);
             overflow-y: auto;
-            padding: 0 10px 10px 10px; /* FIX: Removed top padding to prevent header scroll bleed */
+            padding: 0 10px 10px 10px; 
             box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
         }
 
@@ -238,7 +238,7 @@
             text-align: left;
             border-bottom: 1px solid var(--border-color);
             color: var(--accent-blue);
-            padding: 12px 8px; /* Added vertical padding directly to header */
+            padding: 12px 8px; 
             position: sticky;
             top: 0;
             background: var(--panel-color);
@@ -456,6 +456,15 @@
             padding: 10px;
             border: 1px solid #333;
         }
+        
+        #aop-details-overlay {
+            top: auto;
+            bottom: 15px;
+            left: 15px;
+            right: auto;
+            text-align: left;
+            border-color: var(--accent-blue);
+        }
 
         .scope-status {
             position: absolute;
@@ -533,6 +542,17 @@
                 LON: <span id="hud-lon">121.560 E</span><br>
                 ALT: <span id="hud-alt">32,000 FT</span>
             </div>
+            
+            <!-- AOP Telemetry Panel -->
+            <div id="aop-details-overlay" class="hud-overlay" style="display: none;">
+                <div style="color: var(--accent-blue); border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 5px; font-weight: bold; letter-spacing: 1px;">AOP TELEMETRY</div>
+                LAT: <span id="aop-lat">--</span><br>
+                LON: <span id="aop-lon">--</span><br>
+                SMA (Maj): <span id="aop-sma">--</span> NM<br>
+                SMI (Min): <span id="aop-smi">--</span> NM<br>
+                ORNT: <span id="aop-ori">--</span>°
+            </div>
+
             <div id="toast-container"></div>
         </div>
 
@@ -683,6 +703,7 @@
         <div class="menu-item" data-class="Airborne (AWACS/AEW)">Class: Airborne (AWACS/AEW)</div>
         <div class="menu-item" data-class="Airborne (Fighter)">Class: Airborne (Fighter)</div>
         <div class="menu-item" data-class="Commercial Vessel">Class: Commercial</div>
+        <div class="menu-item" style="color: var(--accent-red); border-top: 1px solid #444; margin-top: 5px; padding-top: 5px;" data-class="DELETE">DELETE AOP</div>
     </div>
 
     <script>
@@ -690,13 +711,10 @@
         (() => {
             // --- CONSTANTS & DATA DICTIONARY ---
             const RADAR_PROFILES = {
-                // UHF/L-Band Group
                 "AN/APS-145 (AEW)": { freq: 0.420, pri: 3500, pw: 15.0 },
                 "AN/SPS-49": { freq: 0.850, pri: 1000, pw: 12.0 },
                 "Type 517M Search": { freq: 1.300, pri: 4500, pw: 20.0 },
                 "MR-710 Top Steer": { freq: 1.300, pri: 2000, pw: 3.0 },
-
-                // S-Band Group
                 "AN/SPY-1D": { freq: 3.300, pri: 800, pw: 3.0 },
                 "AN/SPY-6(V)1": { freq: 3.300, pri: 750, pw: 2.5 },
                 "AN/APY-1 (AWACS)": { freq: 3.100, pri: 4000, pw: 10.0 },
@@ -707,14 +725,10 @@
                 "Type 382 Top Knot": { freq: 2.900, pri: 1350, pw: 2.0 },
                 "Top Plate SGR-200": { freq: 2.900, pri: 1500, pw: 1.2 },
                 "Raymarine Pathfinder": { freq: 3.050, pri: 1000, pw: 0.3 },
-
-                // C/G-Band Group
                 "AN/SPS-67": { freq: 5.600, pri: 650, pw: 1.5 },
                 "Type 364 Seagull C": { freq: 5.600, pri: 750, pw: 1.0 },
                 "Type 364 Mod 1": { freq: 5.600, pri: 900, pw: 0.9 },
                 "Type 381 Rice Shield": { freq: 5.400, pri: 1100, pw: 1.8 },
-
-                // X-Band Group
                 "AN/APG-79": { freq: 9.800, pri: 400, pw: 0.5 },
                 "AN/APG-81": { freq: 9.800, pri: 350, pw: 0.4 },
                 "AN/SPS-73": { freq: 9.400, pri: 900, pw: 0.1 },
@@ -776,7 +790,7 @@
                 aopBuildingMode: false,
                 selectedLOBs: [], 
                 selectedAopIndex: null,
-                selectedInterceptId: null, // Track currently clicked emitter
+                selectedInterceptId: null, 
                 currentAnalysisRadar: null,
                 esmListHash: "",
                 autoIdentifyUnlocked: false,
@@ -843,6 +857,7 @@
                 
                 els.contextMenu = document.getElementById('context-menu');
                 els.toastContainer = document.getElementById('toast-container');
+                els.aopDetailsOverlay = document.getElementById('aop-details-overlay');
 
                 // Export Modal Elements
                 els.exportModal = document.getElementById('export-modal');
@@ -929,7 +944,7 @@
 
                 // Export Logic
                 els.btnExport.addEventListener('click', () => {
-                    els.studentNameInput.value = ''; // Reset input
+                    els.studentNameInput.value = ''; 
                     els.exportModal.style.display = 'flex';
                     els.studentNameInput.focus();
                 });
@@ -973,17 +988,16 @@
                 els.esmBody.addEventListener('click', handleEsmActions);
                 els.esmBody.addEventListener('change', handleEsmActions);
 
-                // Resizer Drag Logic using Pointer Events (solves iframe boundary issues)
+                // Resizer Drag Logic using Pointer Events
                 els.resizer.addEventListener('pointerdown', (e) => {
                     e.preventDefault(); 
                     state.isResizing = true;
-                    els.resizer.setPointerCapture(e.pointerId); // Lock pointer to the resizer
+                    els.resizer.setPointerCapture(e.pointerId); 
                     
                     els.resizer.classList.add('active');
                     document.body.style.cursor = 'ns-resize';
                     document.body.style.userSelect = 'none'; 
                     
-                    // Disable pointer events on children during drag to prevent jittering
                     els.tacContainer.style.pointerEvents = 'none';
                     els.esmPanel.style.pointerEvents = 'none';
                 });
@@ -991,11 +1005,9 @@
                 els.resizer.addEventListener('pointermove', (e) => {
                     if (!state.isResizing) return;
                     
-                    // Use container's bounding rect instead of window.innerHeight for precise iframe rendering
                     const containerRect = document.getElementById('main-container').getBoundingClientRect();
                     let newHeight = containerRect.bottom - e.clientY;
                     
-                    // Constrain panel height so it doesn't break the layout
                     if (newHeight < 100) newHeight = 100;
                     if (newHeight > containerRect.height - 150) newHeight = containerRect.height - 150;
                     
@@ -1006,13 +1018,12 @@
                 els.resizer.addEventListener('pointerup', (e) => {
                     if (state.isResizing) {
                         state.isResizing = false;
-                        els.resizer.releasePointerCapture(e.pointerId); // Release the lock
+                        els.resizer.releasePointerCapture(e.pointerId); 
                         
                         els.resizer.classList.remove('active');
                         document.body.style.cursor = '';
                         document.body.style.userSelect = ''; 
                         
-                        // Re-enable pointer events
                         els.tacContainer.style.pointerEvents = '';
                         els.esmPanel.style.pointerEvents = '';
                         resizeCanvas();
@@ -1061,7 +1072,6 @@
                 if (els.tacContainer && els.tacCanvas) {
                     const newWidth = els.tacContainer.clientWidth;
                     const newHeight = els.tacContainer.clientHeight;
-                    // Only re-assign if changed to prevent aggressive context clearing during drag
                     if (els.tacCanvas.width !== newWidth) els.tacCanvas.width = newWidth;
                     if (els.tacCanvas.height !== newHeight) els.tacCanvas.height = newHeight;
                 }
@@ -1166,7 +1176,6 @@
 
                 // Static Dropped LOBs
                 state.droppedLOBs.forEach(lob => {
-                    // Hide if the parent emitter is currently active and toggled hidden
                     const parentIntercept = state.activeIntercepts.find(i => i.displayId === lob.displayId);
                     if (parentIntercept && !parentIntercept.showLOB) return;
 
@@ -1237,15 +1246,28 @@
                     ctx.setLineDash([]); 
                     ctx.strokeStyle = varToColor('--accent-blue');
                     ctx.fillStyle = 'rgba(0, 210, 255, 0.15)';
-                    ctx.ellipse(aop.x, aop.y, aop.radius, aop.radius * 0.7, 0, 0, 2 * Math.PI);
+                    
+                    const rx = aop.radiusX || aop.radius || 30;
+                    const ry = aop.radiusY || (aop.radius ? aop.radius * 0.7 : 20);
+                    const rot = aop.rotation || 0;
+                    
+                    ctx.ellipse(aop.x, aop.y, rx, ry, rot, 0, 2 * Math.PI);
                     ctx.fill();
                     ctx.stroke();
                     
                     if (aop.correlation) {
+                        ctx.save();
+                        ctx.translate(aop.x, aop.y);
+                        // Prevent upside-down text if ellipse is rotated past vertical
+                        let textRot = rot;
+                        if (textRot > Math.PI/2 || textRot < -Math.PI/2) textRot += Math.PI;
+                        ctx.rotate(textRot);
+                        
                         ctx.fillStyle = varToColor('--accent-blue');
                         ctx.font = "bold 12px Courier New";
                         const textWidth = ctx.measureText(aop.correlation).width;
-                        ctx.fillText(aop.correlation, aop.x - (textWidth/2), aop.y + 4);
+                        ctx.fillText(aop.correlation, -(textWidth/2), 4);
+                        ctx.restore();
                     }
                 });
 
@@ -1288,7 +1310,6 @@
                         row.id = `row-${intercept.id}`;
                         row.className = isSelected ? 'selected-row' : '';
                         
-                        // Slightly dim row if it's hidden to visually distinguish it
                         if (!intercept.showLOB) row.style.opacity = "0.5";
                         
                         row.innerHTML = `
@@ -1327,7 +1348,7 @@
                     const rowId = tr.id.replace('row-', '');
                     if (state.selectedInterceptId !== rowId) {
                         state.selectedInterceptId = rowId;
-                        state.esmListHash = ""; // Force update to show selection
+                        state.esmListHash = ""; 
                         updateESMTable();
                     }
                 }
@@ -1339,20 +1360,26 @@
                     const intercept = state.activeIntercepts.find(x => x.id === id);
                     if (intercept) {
                         intercept.showLOB = target.checked;
-                        state.esmListHash = ""; // Force UI update
+                        state.esmListHash = ""; 
                     }
                 } else if (target.classList.contains('btn-drop-lob')) {
                     const intercept = state.activeIntercepts.find(x => x.id === id);
                     if (intercept) {
-                        const timeStr = new Date().toTimeString().substring(0, 5); // HH:MM
+                        const timeStr = new Date().toTimeString().substring(0, 5); 
+                        
+                        // Realistic LOB Error injection (+/- 0.75 degrees)
+                        // This prevents perfect mathematical intersections so AOP PCA math calculates dynamic shapes
+                        const sensorError = (Math.random() * 1.5) - 0.75;
+                        const finalBearing = (intercept.bearing + sensorError + 360) % 360;
+
                         state.droppedLOBs.push({ 
                             id: Math.random().toString(36).substr(2, 9),
-                            interceptId: intercept.id, // Reference to link back to ESM row
+                            interceptId: intercept.id, 
                             displayId: intercept.displayId,
                             time: timeStr,
                             x: state.ownship.x, 
                             y: state.ownship.y, 
-                            bearing: intercept.bearing 
+                            bearing: finalBearing 
                         });
                         showToast(`LOB Dropped for Emitter #${intercept.displayId}`);
                     }
@@ -1379,7 +1406,6 @@
                 clearMeasurement();
                 els.modal.style.display = 'flex';
                 
-                // Force a resize calculation now that the modal is visible
                 resizeCanvas();
                 
                 state.scope.offset = 0;
@@ -1392,7 +1418,7 @@
                 state.scope.isFrozen = false;
                 els.scopeBtnFreeze.innerText = "FREEZE FEED";
                 els.scopeBtnFreeze.classList.remove('active');
-                if (state.scope.zoom > 1.0) toggleZoom(); // reset zoom
+                if (state.scope.zoom > 1.0) toggleZoom(); 
                 if (state.scopeAnimId) cancelAnimationFrame(state.scopeAnimId);
             }
 
@@ -1408,17 +1434,15 @@
                     els.scopeBtnZoom.innerText = "ZOOM (OUT)";
                     els.scopeBtnZoom.classList.add('active');
                     
-                    // Auto-Center the pulse
                     const profile = RADAR_PROFILES[state.currentAnalysisRadar.radarKey];
                     const currentScale = state.scope.basePixelScale * state.scope.zoom;
                     const priPx = profile.pri * currentScale;
                     const pwPx = profile.pw * currentScale;
                     
-                    // Center mathematically: we want the middle of the pulse to be at canvasWidth / 2
                     let desiredOffset = (pwPx / 2) - (els.scopeCanvas.width / 2);
-                    state.scope.offset = ((desiredOffset % priPx) + priPx) % priPx; // Normalize
+                    state.scope.offset = ((desiredOffset % priPx) + priPx) % priPx; 
                     
-                    if (!state.scope.isFrozen) toggleFreeze(); // Auto freeze
+                    if (!state.scope.isFrozen) toggleFreeze(); 
                     showToast("Zoomed 50x and centered on pulse");
                 } else {
                     state.scope.zoom = 1.0;
@@ -1597,7 +1621,6 @@
                 
                 if (!selectedType) return setFeedback("ERROR: SELECT EMITTER IDENTITY", "error");
 
-                // Parse measurements if provided, otherwise default to 0 for logging
                 const pri = parseFloat(priVal) || 0;
                 const pw = parseFloat(pwVal) || 0;
                 
@@ -1610,7 +1633,7 @@
                     state.userMeasurements[state.currentAnalysisRadar.id] = { pri, pw, type: selectedType, success: true };
                     
                     setFeedback("CLASSIFICATION SUCCESSFUL", "success");
-                    checkAutoIdentify(); // Check if we hit the 5 threshold
+                    checkAutoIdentify(); 
                     setTimeout(closeAnalyzer, 1000);
                     state.esmListHash = ""; 
                 } else {
@@ -1625,6 +1648,7 @@
                 els.btnAopMode.classList.toggle('danger', state.aopBuildingMode);
                 els.tacContainer.classList.toggle('aop-active', state.aopBuildingMode);
                 els.contextMenu.style.display = 'none';
+                els.aopDetailsOverlay.style.display = 'none';
                 
                 if (state.aopBuildingMode) {
                     state.selectedLOBs = [];
@@ -1672,9 +1696,8 @@
                 const worldY = clickY - (els.tacCanvas.height / 2) + state.ownship.y;
 
                 if (state.aopBuildingMode) {
-                    // Try to select a LOB
                     let clickedLob = null;
-                    let minD = 20; // Hit radius
+                    let minD = 20; 
                     
                     state.droppedLOBs.forEach(lob => {
                         const rad = (lob.bearing - 90) * (Math.PI / 180);
@@ -1690,10 +1713,8 @@
                     if (clickedLob) {
                         const idx = state.selectedLOBs.findIndex(l => l.id === clickedLob.id);
                         if (idx > -1) {
-                            // Deselect
                             state.selectedLOBs.splice(idx, 1);
                         } else {
-                            // Select (ensure it matches the ID of already selected LOBs)
                             if (state.selectedLOBs.length > 0 && clickedLob.displayId !== state.selectedLOBs[0].displayId) {
                                 showToast("ERROR: LOBs must be from the same Emitter ID.", "error");
                                 return;
@@ -1706,16 +1727,34 @@
                     }
 
                 } else {
-                    // Assign Ship Class to existing AOP
-                    const clickedIdx = state.aops.findIndex(a => Math.sqrt((a.x-worldX)**2 + (a.y-worldY)**2) < a.radius);
+                    // Assign Ship Class to existing AOP / Open Context Menu
+                    const clickedIdx = state.aops.findIndex(a => {
+                        const rx = a.radiusX || a.radius || 30;
+                        const ry = a.radiusY || a.radius || 30;
+                        return Math.sqrt((a.x-worldX)**2 + (a.y-worldY)**2) < Math.max(rx, ry);
+                    });
+                    
                     if (clickedIdx !== -1) {
                         state.selectedAopIndex = clickedIdx;
                         els.contextMenu.style.display = 'block'; 
                         els.contextMenu.style.left = e.clientX + 'px'; 
                         els.contextMenu.style.top = e.clientY + 'px';
+                        
+                        // Populate and show AOP details overlay
+                        const aop = state.aops[clickedIdx];
+                        document.getElementById('aop-lat').innerText = (25.122 + (aop.y / -10000)).toFixed(3) + " N";
+                        document.getElementById('aop-lon').innerText = (121.560 + (aop.x / 10000)).toFixed(3) + " E";
+                        document.getElementById('aop-sma').innerText = (aop.radiusX / 3.5).toFixed(1);
+                        document.getElementById('aop-smi').innerText = (aop.radiusY / 3.5).toFixed(1);
+                        
+                        let deg = (aop.rotation * 180 / Math.PI + 90 + 360) % 180;
+                        document.getElementById('aop-ori').innerText = deg.toFixed(1).padStart(5, '0');
+                        
+                        els.aopDetailsOverlay.style.display = 'block';
                         return;
                     } else {
                         els.contextMenu.style.display = 'none';
+                        els.aopDetailsOverlay.style.display = 'none';
                     }
 
                     // Check for Active LOB click
@@ -1745,7 +1784,6 @@
                     let clickedDroppedLob = null;
                     minD = 20;
                     state.droppedLOBs.forEach((lob) => {
-                        // Ignore hidden LOBs
                         const parentIntercept = state.activeIntercepts.find(i => i.displayId === lob.displayId);
                         if (parentIntercept && !parentIntercept.showLOB) return;
 
@@ -1797,28 +1835,58 @@
                 cx /= intersections.length;
                 cy /= intersections.length;
 
-                let maxDist = 20; 
+                // PCA Covariance Matrix to determine ellipse orientation and axes dynamically
+                let cxx = 0, cyy = 0, cxy = 0;
                 intersections.forEach(p => {
-                    let d = Math.sqrt((p.x-cx)**2 + (p.y-cy)**2);
-                    if (d > maxDist) maxDist = d;
+                    let dx = p.x - cx;
+                    let dy = p.y - cy;
+                    cxx += dx * dx;
+                    cyy += dy * dy;
+                    cxy += dx * dy;
                 });
+                cxx /= intersections.length;
+                cyy /= intersections.length;
+                cxy /= intersections.length;
+
+                // Eigenvalues determine spread/variance along the main axes
+                let d = Math.sqrt(Math.pow((cxx - cyy) / 2, 2) + cxy * cxy);
+                let lambda1 = (cxx + cyy) / 2 + d;
+                let lambda2 = (cxx + cyy) / 2 - d;
+
+                // Angle of principal eigenvector (ellipse orientation)
+                let theta = 0;
+                if (cxx !== cyy || cxy !== 0) {
+                    theta = 0.5 * Math.atan2(2 * cxy, cxx - cyy);
+                }
+
+                // Scale variance into pixel radius, with a firm minimum so perfect cuts don't disappear
+                let rx = Math.max(10, Math.sqrt(lambda1) * 2.0);
+                let ry = Math.max(10, Math.sqrt(lambda2) * 2.0);
 
                 state.aops.push({ 
                     x: cx, 
                     y: cy, 
-                    radius: maxDist + 20, // Add padding
+                    radiusX: rx,
+                    radiusY: ry,
+                    rotation: theta,
                     correlation: null 
                 });
                 
-                showToast("AOP Created successfully.");
-                toggleAOPMode(); // Turn off mode
+                showToast("Dynamic AOP Created successfully.");
+                toggleAOPMode(); 
             }
 
             function assignShipClass(name) {
                 if (state.selectedAopIndex !== null && state.aops[state.selectedAopIndex]) {
-                    state.aops[state.selectedAopIndex].correlation = name;
+                    if (name === 'DELETE') {
+                        state.aops.splice(state.selectedAopIndex, 1);
+                        showToast("AOP Deleted.", "info");
+                    } else {
+                        state.aops[state.selectedAopIndex].correlation = name;
+                    }
                 }
                 els.contextMenu.style.display = 'none';
+                els.aopDetailsOverlay.style.display = 'none';
             }
 
             // --- UTILS ---
@@ -1848,7 +1916,7 @@
                                 type: intercept.radarKey, 
                                 success: true 
                             };
-                            state.esmListHash = ""; // force re-render
+                            state.esmListHash = ""; 
                         }
                     });
                 }
@@ -1864,10 +1932,8 @@
                 }
                 els.toastContainer.appendChild(toast);
                 
-                // Animate in
                 setTimeout(() => toast.style.opacity = '1', 10);
                 
-                // Animate out and remove
                 setTimeout(() => {
                     toast.style.opacity = '0';
                     setTimeout(() => toast.remove(), 300);
@@ -1881,13 +1947,12 @@
                     score: Object.keys(state.userMeasurements).length,
                     userMeasurements: state.userMeasurements, 
                     aops: state.aops,
-                    groundTruth: SCENARIO_ENTITIES // Added for external grading scripts
+                    groundTruth: SCENARIO_ENTITIES 
                 };
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                 const a = document.createElement('a'); 
                 a.href = URL.createObjectURL(blob); 
                 
-                // Make the filename friendly by stripping weird characters from the name
                 const safeName = studentName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
                 a.download = `elint_grading_${safeName}_${Date.now()}.json`; 
                 a.click();

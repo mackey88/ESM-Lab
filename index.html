@@ -289,6 +289,8 @@
             flex-direction: column;
             gap: 15px;
             max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
             box-shadow: 0 0 30px rgba(0, 210, 255, 0.15);
         }
 
@@ -512,12 +514,14 @@
             position: fixed;
             bottom: 20px;
             right: 20px;
-            width: 300px;
+            width: 350px;
+            max-height: 80vh;
+            overflow-y: auto;
             background: rgba(0, 0, 0, 0.9);
-            border: 2px solid var(--accent-green);
+            border: 2px solid var(--accent-orange);
             padding: 15px;
             z-index: 1000;
-            box-shadow: 0 0 15px rgba(0, 255, 65, 0.5);
+            box-shadow: 0 0 15px rgba(255, 140, 0, 0.5);
             border-radius: 5px;
             flex-direction: column;
             gap: 10px;
@@ -525,28 +529,73 @@
 
         #tutorial-overlay h3 {
             margin: 0;
-            color: var(--accent-blue);
-            font-size: 16px;
+            margin-bottom: 15px;
+            color: var(--accent-orange);
+            font-size: 18px;
+            border-bottom: 1px solid var(--accent-orange);
+            padding-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        #tutorial-overlay p {
-            margin: 0;
+        .tutorial-step {
+            border: 1px solid #444;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+
+        .tutorial-step-header {
+            background: #222;
+            padding: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            color: var(--accent-blue);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tutorial-step-header:hover {
+            background: #333;
+        }
+
+        .tutorial-step-content {
+            display: none;
+            padding: 10px;
+            background: #111;
             font-size: 14px;
-            line-height: 1.4;
-            color: #fff;
+            line-height: 1.5;
+            color: #ddd;
+        }
+
+        .tutorial-step.active .tutorial-step-content {
+            display: block;
+        }
+
+        .tutorial-step.active .tutorial-step-header {
+            border-bottom: 1px solid #444;
+            color: var(--accent-green);
         }
 
         #tutorial-overlay .controls {
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-end;
             margin-top: 10px;
         }
 
         .tutorial-highlight {
             position: relative;
             z-index: 900 !important;
-            box-shadow: 0 0 15px 5px var(--accent-green) !important;
-            animation: pulse-border 1.5s infinite;
+            box-shadow: 0 0 15px 5px var(--accent-orange) !important;
+            animation: pulse-border-orange 1.5s infinite;
+        }
+
+        @keyframes pulse-border-orange {
+            0% { box-shadow: 0 0 10px 2px var(--accent-orange); }
+            50% { box-shadow: 0 0 20px 6px var(--accent-orange); }
+            100% { box-shadow: 0 0 10px 2px var(--accent-orange); }
         }
 
         @keyframes pulse-border {
@@ -706,6 +755,12 @@
     <div id="main-container">
         <div id="tacplot-container">
             <canvas id="tacplot"></canvas>
+
+            <div class="zoom-controls" style="position: absolute; bottom: 20px; left: 20px; display: flex; flex-direction: column; gap: 5px; z-index: 10;">
+                <button id="btn-zoom-in" style="width: 30px; height: 30px; padding: 0; font-size: 20px; line-height: 1;">+</button>
+                <button id="btn-zoom-out" style="width: 30px; height: 30px; padding: 0; font-size: 20px; line-height: 1;">-</button>
+            </div>
+
             <div class="hud-overlay">
                 LAT: <span id="hud-lat">25.122 N</span><br>
                 LON: <span id="hud-lon">121.560 E</span><br>
@@ -747,12 +802,15 @@
     </div>
 
     <div id="tutorial-overlay">
-        <h3 id="tut-title">Tutorial Step</h3>
-        <p id="tut-text">Description</p>
+        <h3>
+            <span>TUTORIAL</span>
+            <button id="tut-close" class="danger" style="padding: 2px 8px; font-size: 12px;">X</button>
+        </h3>
+        <div id="tutorial-steps-container">
+            <!-- Steps will be dynamically injected here -->
+        </div>
         <div class="controls">
-            <button id="tut-prev">PREV</button>
-            <button id="tut-next">NEXT</button>
-            <button id="tut-close" class="danger">CLOSE</button>
+            <!-- Navigation controls moved to individual steps -->
         </div>
     </div>
 
@@ -847,6 +905,7 @@
                 studentName: "",
                 ownship: { x: 700, y: 600, heading: 0, speed: 0.1, speedKnots: 400, altitude: 32000 },
                 autopilotEnabled: false,
+                tacplotZoom: 1.0,
                 interceptCounter: 1,
                 activeIntercepts: [],
                 hiddenEmitters: new Set(), // Persists hidden preference by ID
@@ -933,6 +992,14 @@
                 // Platform Library Modal Elements
                 els.platformModal = document.getElementById('platform-modal');
                 els.btnClosePlatformModal = document.getElementById('btn-close-platform-modal');
+
+                // Zoom Controls
+                document.getElementById('btn-zoom-in').addEventListener('click', () => {
+                    state.tacplotZoom = Math.min(state.tacplotZoom * 1.5, 4.0);
+                });
+                document.getElementById('btn-zoom-out').addEventListener('click', () => {
+                    state.tacplotZoom = Math.max(state.tacplotZoom / 1.5, 0.25);
+                });
 
                 // Attach Event Listeners
                 window.addEventListener('resize', resizeCanvas);
@@ -1031,40 +1098,99 @@
 
                 let currentTutStep = 0;
 
-                function updateTutorial() {
+                function renderTutorialSteps() {
+                    const container = document.getElementById('tutorial-steps-container');
+                    container.innerHTML = '';
+
+                    tutorialSteps.forEach((step, index) => {
+                        const stepEl = document.createElement('div');
+                        stepEl.className = `tutorial-step ${index === currentTutStep ? 'active' : ''}`;
+
+                        const header = document.createElement('div');
+                        header.className = 'tutorial-step-header';
+                        header.innerHTML = `<span>${index + 1}. ${step.title}</span><span style="font-size: 10px;">${index === currentTutStep ? '▼' : '▶'}</span>`;
+                        header.addEventListener('click', () => {
+                            currentTutStep = index;
+                            renderTutorialSteps();
+                        });
+
+                        const content = document.createElement('div');
+                        content.className = 'tutorial-step-content';
+
+                        // Action/Description text
+                        const p = document.createElement('p');
+                        p.innerText = step.text;
+                        p.style.marginBottom = '10px';
+
+                        // Controls for this step
+                        const controls = document.createElement('div');
+                        controls.style.display = 'flex';
+                        controls.style.justifyContent = 'space-between';
+
+                        const btnPrev = document.createElement('button');
+                        btnPrev.innerText = 'PREV';
+                        btnPrev.disabled = index === 0;
+                        btnPrev.style.padding = '4px 8px';
+                        btnPrev.style.fontSize = '12px';
+                        btnPrev.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            if(currentTutStep > 0) currentTutStep--;
+                            renderTutorialSteps();
+                        });
+
+                        const btnNext = document.createElement('button');
+                        btnNext.innerText = index === tutorialSteps.length - 1 ? 'FINISH' : 'NEXT';
+                        btnNext.style.padding = '4px 8px';
+                        btnNext.style.fontSize = '12px';
+                        btnNext.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            if(currentTutStep < tutorialSteps.length - 1) {
+                                currentTutStep++;
+                                renderTutorialSteps();
+                            } else {
+                                closeTutorial();
+                            }
+                        });
+
+                        controls.appendChild(btnPrev);
+                        controls.appendChild(btnNext);
+
+                        content.appendChild(p);
+                        content.appendChild(controls);
+
+                        stepEl.appendChild(header);
+                        stepEl.appendChild(content);
+                        container.appendChild(stepEl);
+                    });
+
+                    updateHighlights();
+                }
+
+                function updateHighlights() {
                     document.querySelectorAll('.tutorial-highlight').forEach(el => el.classList.remove('tutorial-highlight'));
-
                     const step = tutorialSteps[currentTutStep];
-                    document.getElementById('tut-title').innerText = step.title;
-                    document.getElementById('tut-text').innerText = step.text;
+                    if (step && step.selector) {
+                        const el = document.querySelector(step.selector);
+                        if (el) {
+                            el.classList.add('tutorial-highlight');
+                            // Optional: gently scroll the highlighted element into view if needed
+                            // el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    }
+                }
 
-                    const el = document.querySelector(step.selector);
-                    if (el) el.classList.add('tutorial-highlight');
-
-                    document.getElementById('tut-prev').disabled = currentTutStep === 0;
-                    document.getElementById('tut-next').disabled = currentTutStep === tutorialSteps.length - 1;
+                function closeTutorial() {
+                    document.getElementById('tutorial-overlay').style.display = 'none';
+                    document.querySelectorAll('.tutorial-highlight').forEach(el => el.classList.remove('tutorial-highlight'));
                 }
 
                 document.getElementById('btn-tutorial').addEventListener('click', () => {
                     document.getElementById('tutorial-overlay').style.display = 'flex';
                     currentTutStep = 0;
-                    updateTutorial();
+                    renderTutorialSteps();
                 });
 
-                document.getElementById('tut-prev').addEventListener('click', () => {
-                    if (currentTutStep > 0) currentTutStep--;
-                    updateTutorial();
-                });
-
-                document.getElementById('tut-next').addEventListener('click', () => {
-                    if (currentTutStep < tutorialSteps.length - 1) currentTutStep++;
-                    updateTutorial();
-                });
-
-                document.getElementById('tut-close').addEventListener('click', () => {
-                    document.getElementById('tutorial-overlay').style.display = 'none';
-                    document.querySelectorAll('.tutorial-highlight').forEach(el => el.classList.remove('tutorial-highlight'));
-                });
+                document.getElementById('tut-close').addEventListener('click', closeTutorial);
 
                 els.btnPlatformLibrary.addEventListener('click', () => {
                     els.platformModal.style.display = 'flex';
@@ -1203,16 +1329,47 @@
 
             function update() {
                 if (state.autopilotEnabled) {
-                    // Simple boundary reflection keeping aircraft roughly inside 0-1000
-                    const margin = 100;
-                    if (state.ownship.x < margin && Math.cos((state.ownship.heading - 90) * (Math.PI / 180)) < 0) {
-                        updateHeading(state.ownship.heading + 2);
-                    } else if (state.ownship.x > 900 && Math.cos((state.ownship.heading - 90) * (Math.PI / 180)) > 0) {
-                        updateHeading(state.ownship.heading + 2);
-                    } else if (state.ownship.y < margin && Math.sin((state.ownship.heading - 90) * (Math.PI / 180)) < 0) {
-                        updateHeading(state.ownship.heading + 2);
-                    } else if (state.ownship.y > 900 && Math.sin((state.ownship.heading - 90) * (Math.PI / 180)) > 0) {
-                        updateHeading(state.ownship.heading + 2);
+                    // Orbit around the "island" coastline center (approx x:650, y:425)
+                    const targetX = 650;
+                    const targetY = 425;
+                    const orbitRadius = 250;
+
+                    const dx = targetX - state.ownship.x;
+                    const dy = targetY - state.ownship.y;
+                    const distance = Math.sqrt(dx*dx + dy*dy);
+
+                    // Angle to the center
+                    let angleToCenter = Math.atan2(dy, dx) * (180 / Math.PI);
+                    // Standardize 0 to 360
+                    angleToCenter = (angleToCenter + 360) % 360;
+                    // Standardize heading -90 offset
+                    let currentHdg = state.ownship.heading - 90;
+                    currentHdg = (currentHdg + 360) % 360;
+
+                    // Calculate desired heading (tangent to orbit)
+                    // We want to orbit clockwise, so we add 90 degrees to the angle to center
+                    let desiredHdg = angleToCenter + 90;
+
+                    // If we are too far, turn towards the center more
+                    // If we are too close, turn away from the center more
+                    const error = distance - orbitRadius;
+                    const correctionAngle = Math.max(-45, Math.min(45, error * 0.2));
+                    desiredHdg += correctionAngle;
+
+                    // Convert back to compass heading
+                    desiredHdg = (desiredHdg + 90 + 360) % 360;
+
+                    // Smooth turn
+                    let hdgDiff = desiredHdg - state.ownship.heading;
+                    // Normalize to -180 to +180
+                    while (hdgDiff > 180) hdgDiff -= 360;
+                    while (hdgDiff < -180) hdgDiff += 360;
+
+                    const maxTurnRate = 0.5;
+                    if (Math.abs(hdgDiff) > maxTurnRate) {
+                        updateHeading(state.ownship.heading + Math.sign(hdgDiff) * maxTurnRate);
+                    } else {
+                        updateHeading(desiredHdg);
                     }
                 }
 
@@ -1274,16 +1431,27 @@
                 const centerY = canvas.height / 2;
 
                 ctx.save();
+
+                // Apply Zoom
+                ctx.translate(centerX, centerY);
+                ctx.scale(state.tacplotZoom, state.tacplotZoom);
+                ctx.translate(-centerX, -centerY);
+
                 ctx.translate(centerX - state.ownship.x, centerY - state.ownship.y);
 
                 // --- Infinite Grid ---
                 ctx.strokeStyle = "#151515";
                 ctx.lineWidth = 1;
                 const gridSize = 200;
-                const startX = Math.floor((state.ownship.x - centerX) / gridSize) * gridSize;
-                const endX = startX + canvas.width + gridSize;
-                const startY = Math.floor((state.ownship.y - centerY) / gridSize) * gridSize;
-                const endY = startY + canvas.height + gridSize;
+
+                // Expand bounds based on zoom so grid covers the entire scaled canvas
+                const viewWidth = canvas.width / state.tacplotZoom;
+                const viewHeight = canvas.height / state.tacplotZoom;
+
+                const startX = Math.floor((state.ownship.x - viewWidth/2) / gridSize) * gridSize;
+                const endX = startX + viewWidth + gridSize * 2;
+                const startY = Math.floor((state.ownship.y - viewHeight/2) / gridSize) * gridSize;
+                const endY = startY + viewHeight + gridSize * 2;
 
                 ctx.beginPath();
                 for (let x = startX; x <= endX; x += gridSize) {
@@ -1840,8 +2008,16 @@
                 const rect = els.tacCanvas.getBoundingClientRect();
                 const clickX = e.clientX - rect.left;
                 const clickY = e.clientY - rect.top;
-                const worldX = clickX - (els.tacCanvas.width / 2) + state.ownship.x;
-                const worldY = clickY - (els.tacCanvas.height / 2) + state.ownship.y;
+
+                const centerX = els.tacCanvas.width / 2;
+                const centerY = els.tacCanvas.height / 2;
+
+                // Adjust for zoom
+                const relX = (clickX - centerX) / state.tacplotZoom;
+                const relY = (clickY - centerY) / state.tacplotZoom;
+
+                const worldX = relX + state.ownship.x;
+                const worldY = relY + state.ownship.y;
 
                 if (state.aopBuildingMode) {
                     let clickedLob = null;

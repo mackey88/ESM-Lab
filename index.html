@@ -1037,6 +1037,7 @@
                     if(els.hdgInput) els.hdgInput.value = Math.round(deg).toString().padStart(3, '0');
                     if(els.hdgPointer) els.hdgPointer.style.transform = `rotate(${deg}deg)`;
                 }
+                window.updateHeading = updateHeading;
 
                 if (els.hdgInput) {
                     els.hdgInput.addEventListener('change', (e) => {
@@ -1388,8 +1389,8 @@
             function gameLoop() {
                 update();
                 drawTacplot();
-                updateHighlights();
-                checkTutorialAutoAdvance();
+                if (typeof updateHighlights === 'function') updateHighlights();
+                if (typeof checkTutorialAutoAdvance === 'function') checkTutorialAutoAdvance();
                 state.gameAnimId = requestAnimationFrame(gameLoop);
             }
 
@@ -1426,9 +1427,9 @@
 
                     const maxTurnRate = 0.5;
                     if (Math.abs(hdgDiff) > maxTurnRate) {
-                        updateHeading(state.ownship.heading + Math.sign(hdgDiff) * maxTurnRate);
+                        if (typeof window.updateHeading === 'function') window.updateHeading(state.ownship.heading + Math.sign(hdgDiff) * maxTurnRate);
                     } else {
-                        updateHeading(desiredHdg);
+                        if (typeof window.updateHeading === 'function') window.updateHeading(desiredHdg);
                     }
                 }
 

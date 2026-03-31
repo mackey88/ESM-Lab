@@ -590,13 +590,14 @@
             position: relative;
             z-index: 900 !important;
             box-shadow: 0 0 15px 5px var(--accent-orange) !important;
+            outline: 2px solid var(--accent-orange) !important;
             animation: pulse-border-orange 1.5s infinite;
         }
 
         @keyframes pulse-border-orange {
-            0% { box-shadow: 0 0 10px 2px var(--accent-orange); }
-            50% { box-shadow: 0 0 20px 6px var(--accent-orange); }
-            100% { box-shadow: 0 0 10px 2px var(--accent-orange); }
+            0% { box-shadow: 0 0 10px 2px var(--accent-orange); outline-color: rgba(255, 157, 0, 0.5); }
+            50% { box-shadow: 0 0 20px 6px var(--accent-orange); outline-color: rgba(255, 157, 0, 1); }
+            100% { box-shadow: 0 0 10px 2px var(--accent-orange); outline-color: rgba(255, 157, 0, 0.5); }
         }
 
         @keyframes pulse-border {
@@ -1098,14 +1099,19 @@
                 els.btnConfirmAop.addEventListener('click', confirmAOP);
                 
                 const tutorialSteps = [
-                    { title: "Select Emitter", text: "1. Select an emitter from the ESM list below or by clicking on it in the tacplot view.", selector: "#esm-body tr:first-child" },
+                    { title: "Select Emitter", text: "1. Select an emitter from the ESM list below or by clicking on it in the tacplot view.", selector: "#esm-body tr" },
                     { title: "Analyze Emitter", text: "2. Analyze the emitter by pressing the 'Analyze' button in the ESM table row.", selector: ".selected-row .btn-analyze" },
-                    { title: "Pause and Measure", text: "3. In the Analyzer, pause the view and measure the PRI and PW. Use 'Zoom (50x)' to measure PW.", selector: "#btn-freeze" },
-                    { title: "Classify Emitter", text: "4. Using the Carrier Freq, PRI and PW select the appropriate emitter from the dropdown.", selector: "#emitter-select" },
-                    { title: "Auto Classify", text: "5. Complete the correct number of emitter classifications (5) to unlock auto classify.", selector: "#btn-submit-measurement" },
-                    { title: "Review List", text: "6. Review the list of emitters and hide by unchecking the visible next to emitters that are not of interest. Recommend using the platform library to help.", selector: "#btn-platform-library" },
-                    { title: "Build AOP", text: "7. Build AOPs by dropping lines of bearing, then pressing 'BUILD AOP', selecting 3+ dropped LOBs, and confirming.", selector: "#btn-aop-mode" },
-                    { title: "Classify AOP", text: "8. Use the bearings that go through the AOP to classify the AOP to a certain class of ship. Set it by clicking the AOP.", selector: "#tacplot-container" }
+                    { title: "Pause Feed", text: "3. In the Analyzer, pause the feed to capture a stable signal for measurement.", selector: "#btn-freeze" },
+                    { title: "Measure PRI", text: "4. Click 'Measure PRI', then click the start and end of a pulse interval on the scope to measure the Pulse Repetition Interval.", selector: "#btn-measure-pri" },
+                    { title: "Measure PW", text: "5. Zoom in to see the pulse details, click 'Measure PW', and measure the width of a single pulse.", selector: "#btn-zoom, #btn-measure-pw" },
+                    { title: "Identify Parameters", text: "6. Use the intercepted frequency, along with the measured PRI and PW to find the matching radar.", selector: "#detected-freq-display, #measure-pri, #measure-pw" },
+                    { title: "Classify Emitter", text: "7. Select the appropriate radar that matches your measurements from the list.", selector: "#emitter-select" },
+                    { title: "Submit Classification", text: "8. Submit your classification. After classifying 5 emitters, auto-classify will unlock.", selector: "#btn-submit-measurement" },
+                    { title: "Platform Library", text: "9. Use the platform library to reference which radars belong to which platforms.", selector: "#btn-platform-library" },
+                    { title: "Hide Emitters", text: "10. Hide emitters that are not of interest by unchecking the VISIBLE toggle. This keeps your tacplot clean.", selector: "th:nth-child(2), td:nth-child(2)" },
+                    { title: "Drop LOBs", text: "11. Drop Lines of Bearing (LOB) with good angular separation. Recommend working one emitter at a time and manually directing flight (disable AUTO) to get better lines.", selector: ".btn-drop-lob, #btn-autopilot" },
+                    { title: "Build AOP", text: "12. Press 'BUILD AOP', select 3+ dropped LOBs on the tacplot, and then click 'CONFIRM AOP'.", selector: "#btn-aop-mode, #btn-confirm-aop" },
+                    { title: "Classify AOP", text: "13. Use the bearings that go through the AOP to classify the AOP to a certain class of ship. Set it by clicking the AOP.", selector: "#tacplot-container" }
                 ];
 
                 let currentTutStep = 0;
@@ -1206,28 +1212,44 @@
                     let shouldAdvance = false;
 
                     switch(currentTutStep) {
-                        case 0: // Waiting for an intercept to be selected
+                        case 0: // Select Emitter
                             if (state.selectedInterceptId !== null) shouldAdvance = true;
                             break;
-                        case 1: // Waiting for Analyzer to open
+                        case 1: // Analyze Emitter
                             if (state.currentAnalysisRadar !== null && els.modal.style.display === 'flex') shouldAdvance = true;
                             break;
-                        case 2: // Waiting for freeze and measurement log
-                            if (els.inputPri.value !== '' || els.inputPw.value !== '') shouldAdvance = true;
+                        case 2: // Pause Feed
+                            if (state.scope.isFrozen) shouldAdvance = true;
                             break;
-                        case 3: // Waiting for emitter classification selected
+                        case 3: // Measure PRI
+                            if (els.inputPri.value !== '') shouldAdvance = true;
+                            break;
+                        case 4: // Measure PW
+                            if (els.inputPw.value !== '') shouldAdvance = true;
+                            break;
+                        case 5: // Identify Parameters
+                            // We don't want to auto-advance from Identify Parameters if they immediately select.
+                            // Let the user manually click NEXT after reviewing the params.
+                            break;
+                        case 6: // Classify Emitter
                             if (els.emitterSelect.value !== '') shouldAdvance = true;
                             break;
-                        case 4: // Waiting for successful submission
+                        case 7: // Submit Classification
                             if (state.currentAnalysisRadar && state.currentAnalysisRadar.identified) shouldAdvance = true;
                             break;
-                        case 5: // Waiting for platform library or visibility toggle
-                            if (els.platformModal.style.display === 'flex' || state.hiddenEmitters.size > 0) shouldAdvance = true;
+                        case 8: // Platform Library
+                            if (els.platformModal.style.display === 'flex') shouldAdvance = true;
                             break;
-                        case 6: // Waiting for AOP Confirm Mode or AOP creation
+                        case 9: // Hide Emitters
+                            if (state.hiddenEmitters.size > 0) shouldAdvance = true;
+                            break;
+                        case 10: // Drop LOBs
+                            if (state.droppedLOBs.length > 0) shouldAdvance = true;
+                            break;
+                        case 11: // Build AOP
                             if (state.aopBuildingMode || state.aops.length > 0) shouldAdvance = true;
                             break;
-                        case 7: // Waiting for AOP Classification
+                        case 12: // Classify AOP
                             if (state.aops.some(a => a.correlation !== null)) {
                                 showToast("TUTORIAL COMPLETE", "success");
                                 closeTutorial();
@@ -1238,7 +1260,7 @@
                     if (shouldAdvance) {
                         currentTutStep++;
                         renderTutorialSteps();
-                        if (currentTutStep === 7) {
+                        if (currentTutStep === 12) {
                             autoAdvanceEnabled = false; // Disable auto-advance after one full pass
                         }
                     }

@@ -232,7 +232,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 15px;
+            font-size: 17px;
         }
 
         th {
@@ -437,9 +437,9 @@
         }
 
         .menu-item {
-            padding: 8px 12px;
+            padding: 10px 14px;
             cursor: pointer;
-            font-size: 15px;
+            font-size: 17px;
             color: #ddd;
         }
 
@@ -501,8 +501,8 @@
             background: rgba(0,0,0,0.8);
             border: 1px solid var(--accent-orange);
             color: var(--accent-orange);
-            padding: 8px 16px;
-            font-size: 15px;
+            padding: 10px 20px;
+            font-size: 17px;
             font-weight: bold;
             opacity: 0;
             transition: opacity 0.3s;
@@ -512,7 +512,7 @@
         #tutorial-overlay {
             display: none;
             position: fixed;
-            bottom: 20px;
+            top: 80px;
             right: 20px;
             width: 350px;
             max-height: 80vh;
@@ -531,7 +531,7 @@
             margin: 0;
             margin-bottom: 15px;
             color: var(--accent-orange);
-            font-size: 18px;
+            font-size: 20px;
             border-bottom: 1px solid var(--accent-orange);
             padding-bottom: 5px;
             display: flex;
@@ -548,10 +548,11 @@
 
         .tutorial-step-header {
             background: #222;
-            padding: 10px;
+            padding: 12px;
             cursor: pointer;
             font-weight: bold;
             color: var(--accent-blue);
+            font-size: 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -563,9 +564,9 @@
 
         .tutorial-step-content {
             display: none;
-            padding: 10px;
+            padding: 12px;
             background: #111;
-            font-size: 14px;
+            font-size: 16px;
             line-height: 1.5;
             color: #ddd;
         }
@@ -904,7 +905,7 @@
             const state = {
                 studentName: "",
                 ownship: { x: 700, y: 600, heading: 0, speed: 0.1, speedKnots: 400, altitude: 32000 },
-                autopilotEnabled: false,
+                autopilotEnabled: true,
                 tacplotZoom: 1.0,
                 interceptCounter: 1,
                 activeIntercepts: [],
@@ -1016,7 +1017,18 @@
                     document.getElementById('student-name-display').innerText = `OP: ${state.studentName.toUpperCase()}`;
                     els.welcomeModal.style.display = 'none';
                     state.gameAnimId = requestAnimationFrame(gameLoop);
+
+                    // Show tutorial automatically on start
+                    document.getElementById('tutorial-overlay').style.display = 'flex';
+                    currentTutStep = 0;
+                    renderTutorialSteps();
                 });
+
+                // Apply initial autopilot styling
+                const btnAutopilot = document.getElementById('btn-autopilot');
+                if (btnAutopilot && state.autopilotEnabled) {
+                    btnAutopilot.classList.add('active');
+                }
 
                 // Flight Control Bindings
                 function updateHeading(deg) {
@@ -1086,9 +1098,9 @@
                 els.btnConfirmAop.addEventListener('click', confirmAOP);
                 
                 const tutorialSteps = [
-                    { title: "Select Emitter", text: "1. Select an emitter from the ESM list below or by clicking on it in the tacplot view.", selector: "#esm-panel" },
-                    { title: "Analyze Emitter", text: "2. Analyze the emitter by pressing the 'Analyze' button in the ESM table row.", selector: ".btn-analyze" },
-                    { title: "Pause and Measure", text: "3. In the Analyzer, pause the view and measure the PRI and PW. Use 'Zoom (50x)' to measure PW.", selector: "#analyzer-view" },
+                    { title: "Select Emitter", text: "1. Select an emitter from the ESM list below or by clicking on it in the tacplot view.", selector: "#esm-body tr:first-child" },
+                    { title: "Analyze Emitter", text: "2. Analyze the emitter by pressing the 'Analyze' button in the ESM table row.", selector: ".selected-row .btn-analyze" },
+                    { title: "Pause and Measure", text: "3. In the Analyzer, pause the view and measure the PRI and PW. Use 'Zoom (50x)' to measure PW.", selector: "#btn-freeze" },
                     { title: "Classify Emitter", text: "4. Using the Carrier Freq, PRI and PW select the appropriate emitter from the dropdown.", selector: "#emitter-select" },
                     { title: "Auto Classify", text: "5. Complete the correct number of emitter classifications (5) to unlock auto classify.", selector: "#btn-submit-measurement" },
                     { title: "Review List", text: "6. Review the list of emitters and hide by unchecking the visible next to emitters that are not of interest. Recommend using the platform library to help.", selector: "#btn-platform-library" },
@@ -1097,6 +1109,7 @@
                 ];
 
                 let currentTutStep = 0;
+                let autoAdvanceEnabled = true;
 
                 function renderTutorialSteps() {
                     const container = document.getElementById('tutorial-steps-container');
@@ -1167,14 +1180,66 @@
                 }
 
                 function updateHighlights() {
-                    document.querySelectorAll('.tutorial-highlight').forEach(el => el.classList.remove('tutorial-highlight'));
                     const step = tutorialSteps[currentTutStep];
-                    if (step && step.selector) {
-                        const el = document.querySelector(step.selector);
-                        if (el) {
+                    if (!step) return;
+
+                    const expectedEls = document.querySelectorAll(step.selector);
+                    const currentHighlights = document.querySelectorAll('.tutorial-highlight');
+
+                    currentHighlights.forEach(el => {
+                        let keep = false;
+                        expectedEls.forEach(ex => { if (el === ex) keep = true; });
+                        if (!keep) el.classList.remove('tutorial-highlight');
+                    });
+
+                    expectedEls.forEach(el => {
+                        if (!el.classList.contains('tutorial-highlight')) {
                             el.classList.add('tutorial-highlight');
-                            // Optional: gently scroll the highlighted element into view if needed
-                            // el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    });
+                }
+
+                function checkTutorialAutoAdvance() {
+                    if (!autoAdvanceEnabled || els.welcomeModal.style.display !== 'none') return;
+                    if (document.getElementById('tutorial-overlay').style.display === 'none') return;
+
+                    let shouldAdvance = false;
+
+                    switch(currentTutStep) {
+                        case 0: // Waiting for an intercept to be selected
+                            if (state.selectedInterceptId !== null) shouldAdvance = true;
+                            break;
+                        case 1: // Waiting for Analyzer to open
+                            if (state.currentAnalysisRadar !== null && els.modal.style.display === 'flex') shouldAdvance = true;
+                            break;
+                        case 2: // Waiting for freeze and measurement log
+                            if (els.inputPri.value !== '' || els.inputPw.value !== '') shouldAdvance = true;
+                            break;
+                        case 3: // Waiting for emitter classification selected
+                            if (els.emitterSelect.value !== '') shouldAdvance = true;
+                            break;
+                        case 4: // Waiting for successful submission
+                            if (state.currentAnalysisRadar && state.currentAnalysisRadar.identified) shouldAdvance = true;
+                            break;
+                        case 5: // Waiting for platform library or visibility toggle
+                            if (els.platformModal.style.display === 'flex' || state.hiddenEmitters.size > 0) shouldAdvance = true;
+                            break;
+                        case 6: // Waiting for AOP Confirm Mode or AOP creation
+                            if (state.aopBuildingMode || state.aops.length > 0) shouldAdvance = true;
+                            break;
+                        case 7: // Waiting for AOP Classification
+                            if (state.aops.some(a => a.correlation !== null)) {
+                                showToast("TUTORIAL COMPLETE", "success");
+                                closeTutorial();
+                            }
+                            break;
+                    }
+
+                    if (shouldAdvance) {
+                        currentTutStep++;
+                        renderTutorialSteps();
+                        if (currentTutStep === 7) {
+                            autoAdvanceEnabled = false; // Disable auto-advance after one full pass
                         }
                     }
                 }
@@ -1324,6 +1389,8 @@
             function gameLoop() {
                 update();
                 drawTacplot();
+                updateHighlights();
+                checkTutorialAutoAdvance();
                 state.gameAnimId = requestAnimationFrame(gameLoop);
             }
 
@@ -1338,32 +1405,25 @@
                     const dy = targetY - state.ownship.y;
                     const distance = Math.sqrt(dx*dx + dy*dy);
 
-                    // Angle to the center
-                    let angleToCenter = Math.atan2(dy, dx) * (180 / Math.PI);
-                    // Standardize 0 to 360
-                    angleToCenter = (angleToCenter + 360) % 360;
-                    // Standardize heading -90 offset
-                    let currentHdg = state.ownship.heading - 90;
-                    currentHdg = (currentHdg + 360) % 360;
+                    // True bearing TO the center
+                    const bearingToCenter = (Math.atan2(dy, dx) * (180 / Math.PI) + 90 + 360) % 360;
 
-                    // Calculate desired heading (tangent to orbit)
-                    // We want to orbit clockwise, so we add 90 degrees to the angle to center
-                    let desiredHdg = angleToCenter + 90;
+                    // Desired orbit path (tangent clockwise)
+                    let desiredHdg = (bearingToCenter + 90) % 360;
 
-                    // If we are too far, turn towards the center more
-                    // If we are too close, turn away from the center more
+                    // Apply proportional correction based on distance from orbit track
                     const error = distance - orbitRadius;
-                    const correctionAngle = Math.max(-45, Math.min(45, error * 0.2));
-                    desiredHdg += correctionAngle;
+                    // If we're too far, turn towards the center (+error -> subtract from desiredHdg to turn inward)
+                    // If we're too close, turn away from center (-error -> add to desiredHdg to turn outward)
+                    const correctionAngle = Math.max(-60, Math.min(60, error * 0.3));
 
-                    // Convert back to compass heading
-                    desiredHdg = (desiredHdg + 90 + 360) % 360;
+                    // We want to turn inwards (subtract) when outside the orbit
+                    desiredHdg = (desiredHdg - correctionAngle + 360) % 360;
 
-                    // Smooth turn
                     let hdgDiff = desiredHdg - state.ownship.heading;
-                    // Normalize to -180 to +180
-                    while (hdgDiff > 180) hdgDiff -= 360;
-                    while (hdgDiff < -180) hdgDiff += 360;
+
+                    // Normalize to -180 to +180 for shortest turn direction
+                    hdgDiff = ((hdgDiff + 540) % 360) - 180;
 
                     const maxTurnRate = 0.5;
                     if (Math.abs(hdgDiff) > maxTurnRate) {

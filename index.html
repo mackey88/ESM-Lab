@@ -615,11 +615,11 @@
             <p style="font-size: 19px; color: #aaa; text-align: center; margin-top: -10px;">OPERATOR BRIEFING & INITIALIZATION</p>
             
             <ul class="instruction-list">
-                <li><span class="highlight">MISSION:</span> There are <span class="highlight">6 Hostile Targets</span> operating in this sector (4 Surface Combatants, 1 Fighter Patrol, 1 Coastal Defense Site).</li>
+                <li><span class="highlight">MISSION:</span> There is <span class="highlight">1 Hostile Target</span> operating in this sector (1 Surface Combatant).</li>
                 <li><span class="highlight">ANALYZE:</span> Isolate unknown emitters. Use the oscilloscope to measure PRI and PW to classify the signal identity.</li>
                 <li><span class="highlight">GEOLOCATE:</span> Drop Lines of Bearing (LOBs). You must select at least <span class="highlight">3 intersecting LOBs</span> from the same emitter to calculate an Area of Probability (AOP).</li>
                 <li><span class="highlight">EVALUATION:</span> To receive full credit for a geolocation, your AOP's Semi-Major and Semi-Minor axes must be <span class="highlight">less than 5.0 NM</span>.</li>
-                <li><span class="highlight">SYSTEM OVERRIDE:</span> After you successfully classify 5 distinct emitters manually, the combat system will unlock Auto-Identification for the remainder of the exercise.</li>
+                <li><span class="highlight">SYSTEM OVERRIDE:</span> After you successfully classify 4 distinct emitters manually, the combat system will unlock Auto-Identification for the remainder of the exercise.</li>
                 <li><span class="highlight">LINK 16:</span> Friendly Blue Force tracks (Carrier Strike Group & CAP) are transmitting Link 16 data and will appear as blue tactical symbols on your plot.</li>
             </ul>
 
@@ -886,20 +886,9 @@
             ];
 
             const SCENARIO_ENTITIES = [
-                { id: 'E1', name: 'PLAN Type 055', affiliation: 'hostile', domain: 'surface', x: 150, y: 250, alt: 100, radars: ["Type 346B Search", "Type 364 Mod 1", "Type 366 Mod 2"] },
-                { id: 'E2', name: 'PLAN Type 052D', affiliation: 'hostile', domain: 'surface', x: 200, y: 150, alt: 80, radars: ["Type 346 Dragon Eye", "Type 364 Seagull C", "Type 366 Band Stand"] },
-                { id: 'E3', name: 'PLAN Type 054A', affiliation: 'hostile', domain: 'surface', x: 250, y: 350, alt: 70, radars: ["Type 382 Top Knot", "Type 366 Band Stand", "Type 344 Fire Control"] },
-                { id: 'E4', name: 'VMF Sovremenny', affiliation: 'hostile', domain: 'surface', x: 100, y: 450, alt: 60, radars: ["MR-710 Top Steer", "Type 366 Mod 2"] },
-                { id: 'E5', name: 'Freighter A', affiliation: 'neutral', domain: 'surface', x: 400, y: 250, alt: 50, radars: ["Furuno FAR-2218", "Raymarine Pathfinder"] },
-                { id: 'E6', name: 'Fishing Boat', affiliation: 'neutral', domain: 'surface', x: 500, y: 500, alt: 20, radars: ["HALO-6 Navigation"] },
-                { id: 'E7', name: 'Coastal Defense Site', affiliation: 'hostile', domain: 'land', x: 50, y: 200, alt: 150, radars: ["Type 517M Search", "Tombstone Flap Lid"] },
-                { id: 'E8', name: 'USN Arleigh Burke', affiliation: 'friendly', domain: 'surface', x: 850, y: 650, alt: 80, radars: ["AN/SPY-1D", "AN/SPS-67", "AN/SPS-73"] },
-                { id: 'E9', name: 'USN Carrier', affiliation: 'friendly', domain: 'surface', x: 950, y: 600, alt: 150, radars: ["AN/SPY-6(V)1", "AN/SPS-49", "AN/SPS-73"] },
-                { id: 'E10', name: 'E-3 Sentry (AWACS)', affiliation: 'friendly', domain: 'air', x: 800, y: 400, alt: 30000, radars: ["AN/APY-1 (AWACS)"] },
-                { id: 'E11', name: 'E-2C Hawkeye', affiliation: 'friendly', domain: 'air', x: 750, y: 800, alt: 25000, radars: ["AN/APS-145 (AEW)"] },
-                { id: 'E12', name: 'F/A-18 CAP', affiliation: 'friendly', domain: 'air', x: 650, y: 500, alt: 22000, radars: ["AN/APG-79"] },
-                { id: 'E13', name: 'J-20 CAP', affiliation: 'hostile', domain: 'air', x: 300, y: 200, alt: 28000, radars: ["Type 1475"] },
-                { id: 'E14', name: 'Cruise Liner', affiliation: 'neutral', domain: 'surface', x: 450, y: 750, alt: 120, radars: ["JRC JMA-9122", "Garmin Cyclone"] }
+                { id: 'E2', name: 'PLAN Type 052D', affiliation: 'hostile', domain: 'surface', x: 200, y: 150, alt: 80, radars: ["Type 346 Dragon Eye", "Type 366 Band Stand"] },
+                { id: 'E5', name: 'Freighter A', affiliation: 'neutral', domain: 'surface', x: 400, y: 250, alt: 50, radars: ["Furuno FAR-2218"] },
+                { id: 'E8', name: 'USN Arleigh Burke', affiliation: 'friendly', domain: 'surface', x: 850, y: 650, alt: 80, radars: ["AN/SPY-1D"] }
             ];
 
             // --- APP STATE ---
@@ -1106,7 +1095,7 @@
                     { title: "Measure PW", text: "5. Zoom in to see the pulse details, click 'Measure PW', and measure the width of a single pulse.", selector: "#btn-zoom, #btn-measure-pw" },
                     { title: "Identify Parameters", text: "6. Use the intercepted frequency, along with the measured PRI and PW to find the matching radar.", selector: "#detected-freq-display, #measure-pri, #measure-pw" },
                     { title: "Classify Emitter", text: "7. Select the appropriate radar that matches your measurements from the list.", selector: "#emitter-select" },
-                    { title: "Submit Classification", text: "8. Submit your classification. After classifying 5 emitters, auto-classify will unlock.", selector: "#btn-submit-measurement" },
+                    { title: "Submit Classification", text: "8. Submit your classification. After classifying 4 emitters, auto-classify will unlock.", selector: "#btn-submit-measurement" },
                     { title: "Platform Library", text: "9. Use the platform library to reference which radars belong to which platforms.", selector: "#btn-platform-library" },
                     { title: "Hide Emitters", text: "10. Hide emitters that are not of interest by unchecking the VISIBLE toggle. This keeps your tacplot clean.", selector: "th:nth-child(2), td:nth-child(2)" },
                     { title: "Drop LOBs", text: "11. Drop Lines of Bearing (LOB) with good angular separation. Recommend working one emitter at a time and manually directing flight (disable AUTO) to get better lines.", selector: ".btn-drop-lob, #btn-autopilot" },
@@ -2297,9 +2286,9 @@
             function checkAutoIdentify() {
                 let currentMatches = Object.keys(state.userMeasurements).length;
                 
-                if (!state.autoIdentifyUnlocked && currentMatches >= 5) {
+                if (!state.autoIdentifyUnlocked && currentMatches >= 4) {
                     state.autoIdentifyUnlocked = true;
-                    showToast("SYSTEM OVERRIDE: Auto-Identification Unlocked (5+ matches)", "success");
+                    showToast("SYSTEM OVERRIDE: Auto-Identification Unlocked (4+ matches)", "success");
                 }
 
                 if (state.autoIdentifyUnlocked) {

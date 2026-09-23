@@ -1,0 +1,2495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESM Trainer</title>
+    <style>
+        :root {
+            --bg: #0b1117;
+            --map-bg: #070c11;
+            --panel: #111a24;
+            --panel-2: #172231;
+            --panel-3: #1d2a3b;
+            --border: #243447;
+            --border-strong: #35506b;
+            --text: #e6edf3;
+            --muted: #8ea3b8;
+            --faint: #5b6f84;
+            --accent: #3ec6ff;
+            --accent-ink: #04121c;
+            --ok: #3ddc84;
+            --warn: #ffb020;
+            --bad: #ff5c5c;
+            --friendly: #4d8dff;
+            --radius: 10px;
+            --mono: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+            --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: 15px;
+            line-height: 1.45;
+        }
+
+        body { display: flex; flex-direction: column; overflow: hidden; }
+
+        button, input, select { font: inherit; color: inherit; }
+
+        .mono { font-family: var(--mono); }
+        .muted { color: var(--muted); }
+        .hidden { display: none !important; }
+
+        /* ---------- Buttons ---------- */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border-strong);
+            background: var(--panel-2);
+            color: var(--text);
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background .15s, border-color .15s, box-shadow .15s;
+        }
+        .btn:hover:not(:disabled) { background: var(--panel-3); border-color: var(--accent); }
+        .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        .btn:disabled { opacity: .45; cursor: not-allowed; }
+        .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+        .btn.primary:hover:not(:disabled) { background: #6fd6ff; box-shadow: 0 0 0 3px rgba(62,198,255,.2); }
+        .btn.ghost { background: transparent; }
+        .btn.danger { color: var(--bad); border-color: rgba(255,92,92,.45); background: transparent; }
+        .btn.danger:hover:not(:disabled) { background: rgba(255,92,92,.12); border-color: var(--bad); }
+        .btn.small { padding: 5px 10px; font-size: 13px; border-radius: 6px; }
+        .btn.block { width: 100%; }
+        .btn.pulse { animation: pulse 1.8s ease-in-out infinite; }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(62,198,255,.55); }
+            50% { box-shadow: 0 0 0 6px rgba(62,198,255,0); }
+        }
+
+        .icon-btn {
+            width: 32px; height: 32px;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--muted);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .icon-btn:hover { background: var(--panel-3); color: var(--text); border-color: var(--border); }
+
+        kbd {
+            font-family: var(--mono);
+            font-size: 11px;
+            padding: 1px 5px;
+            border-radius: 4px;
+            border: 1px solid currentColor;
+            opacity: .75;
+        }
+
+        /* ---------- Top bar ---------- */
+        .topbar {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 10px 18px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .brand-mark {
+            width: 34px; height: 34px; border-radius: 50%;
+            border: 2px solid var(--accent);
+            position: relative; flex-shrink: 0;
+        }
+        .brand-mark::after {
+            content: ""; position: absolute; inset: 7px; border-radius: 50%;
+            background: radial-gradient(circle, var(--accent) 0 30%, transparent 32%);
+            border: 1px solid rgba(62,198,255,.4);
+        }
+        .brand-title { font-weight: 700; font-size: 17px; letter-spacing: .3px; }
+        .brand-sub { font-size: 12px; color: var(--muted); }
+
+        .progress { display: flex; gap: 6px; flex: 1; justify-content: center; flex-wrap: nowrap; min-width: 0; }
+        .pill {
+            display: flex; align-items: center; gap: 8px;
+            padding: 5px 12px;
+            white-space: nowrap;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--panel-2);
+            font-size: 13px;
+            color: var(--muted);
+        }
+        .pill .n {
+            width: 20px; height: 20px; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: var(--panel-3); font-size: 11px; font-weight: 700; color: var(--text);
+        }
+        .pill b { color: var(--text); font-family: var(--mono); font-weight: 600; }
+        .pill.done { border-color: rgba(61,220,132,.5); color: var(--text); }
+        .pill.done .n { background: var(--ok); color: #03170b; }
+        .pill.active { border-color: var(--accent); color: var(--text); }
+        .pill.active .n { background: var(--accent); color: var(--accent-ink); }
+
+        .top-actions { display: flex; align-items: center; gap: 8px; }
+        .operator { font-size: 13px; color: var(--muted); margin-right: 6px; white-space: nowrap; }
+        .operator b { color: var(--text); }
+
+        /* ---------- Layout ---------- */
+        .layout {
+            flex: 1;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 400px;
+            min-height: 0;
+        }
+
+        .map-wrap { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: var(--map-bg); }
+        #map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+
+        .overlay {
+            position: absolute;
+            background: rgba(13, 21, 30, .9);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            backdrop-filter: blur(6px);
+            box-shadow: 0 8px 24px rgba(0,0,0,.35);
+        }
+
+        .guide {
+            top: 14px; left: 14px;
+            max-width: min(560px, calc(100% - 250px));
+            padding: 12px 16px 12px 14px;
+            display: flex; gap: 12px; align-items: flex-start;
+            border-left: 4px solid var(--accent);
+        }
+        .guide-icon {
+            width: 26px; height: 26px; border-radius: 50%;
+            background: var(--accent); color: var(--accent-ink);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; flex-shrink: 0; font-size: 14px;
+        }
+        .guide.good { border-left-color: var(--ok); }
+        .guide.good .guide-icon { background: var(--ok); }
+        .guide.warn { border-left-color: var(--warn); }
+        .guide.warn .guide-icon { background: var(--warn); }
+        .guide-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+        .guide-text { font-size: 15px; }
+        .guide-text b { color: #fff; }
+
+        .hud {
+            top: 14px; right: 14px;
+            padding: 10px 14px;
+            font-family: var(--mono);
+            font-size: 13px;
+            display: grid;
+            grid-template-columns: auto auto;
+            gap: 2px 12px;
+        }
+        .hud span:nth-child(odd) { color: var(--muted); }
+        .hud .north { grid-column: 1 / -1; text-align: center; color: var(--muted); font-size: 11px; border-top: 1px solid var(--border); margin-top: 4px; padding-top: 4px; }
+
+        .flight {
+            bottom: 14px; left: 14px;
+            padding: 12px 14px;
+            width: 300px;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .flight-title { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+        .toggle {
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border-strong);
+            background: var(--panel-2);
+            cursor: pointer;
+            text-align: left;
+        }
+        .toggle .sw { width: 34px; height: 18px; border-radius: 999px; background: var(--panel-3); position: relative; flex-shrink: 0; transition: background .15s; }
+        .toggle .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
+        .toggle[aria-pressed="true"] { border-color: var(--accent); }
+        .toggle[aria-pressed="true"] .sw { background: rgba(62,198,255,.35); }
+        .toggle[aria-pressed="true"] .sw::after { transform: translateX(16px); background: var(--accent); }
+        .toggle small { display: block; color: var(--muted); font-size: 12px; }
+
+        .hdg-row { display: flex; align-items: center; gap: 8px; }
+        .hdg-row label { font-size: 13px; color: var(--muted); width: 58px; }
+        .dial {
+            width: 40px; height: 40px; border-radius: 50%;
+            border: 2px solid var(--border-strong);
+            background: radial-gradient(circle, #0b1520 60%, #0f1c2a);
+            position: relative; cursor: grab; flex-shrink: 0;
+        }
+        .dial::before { content: "N"; position: absolute; top: -1px; left: 50%; transform: translateX(-50%); font-size: 9px; color: var(--muted); }
+        .needle {
+            position: absolute; left: calc(50% - 1px); bottom: 50%;
+            width: 2px; height: 42%;
+            background: var(--ok); transform-origin: bottom center;
+            border-radius: 2px; pointer-events: none;
+        }
+        .hdg-input {
+            width: 64px; padding: 6px 8px; border-radius: 6px;
+            border: 1px solid var(--border-strong); background: #0b1520;
+            font-family: var(--mono); text-align: center;
+        }
+        .slider-row { display: flex; flex-direction: column; gap: 2px; }
+        .slider-row .lbl { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+        .slider-row .lbl b { color: var(--text); font-family: var(--mono); font-weight: 600; }
+        .slider-row .help { font-size: 11px; color: var(--faint); }
+        input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+
+        .map-tools {
+            bottom: 14px; right: 14px;
+            padding: 8px;
+            display: flex; flex-direction: column; gap: 8px; align-items: stretch;
+        }
+        .seg { display: flex; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }
+        .seg button {
+            flex: 1; padding: 6px 10px; border: 0; background: var(--panel-2);
+            cursor: pointer; font-family: var(--mono); font-size: 13px; min-width: 36px;
+        }
+        .seg button + button { border-left: 1px solid var(--border-strong); }
+        .seg button:hover { background: var(--panel-3); }
+        .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+        .tools-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); text-align: center; }
+
+        .toasts {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; flex-direction: column; gap: 8px; align-items: center;
+            pointer-events: none; z-index: 5;
+            width: max-content; max-width: min(420px, calc(100% - 32px));
+        }
+        .toast {
+            padding: 9px 16px; border-radius: 8px;
+            background: rgba(13,21,30,.96); border: 1px solid var(--border-strong);
+            font-size: 14px; box-shadow: 0 8px 20px rgba(0,0,0,.4);
+            opacity: 0; transform: translateY(6px); transition: opacity .25s, transform .25s;
+        }
+        .toast.show { opacity: 1; transform: none; }
+        .toast.ok { border-color: var(--ok); }
+        .toast.warn { border-color: var(--warn); }
+        .toast.bad { border-color: var(--bad); }
+
+        /* ---------- Sidebar ---------- */
+        .sidebar {
+            background: var(--panel);
+            border-left: 1px solid var(--border);
+            display: flex; flex-direction: column;
+            min-height: 0;
+        }
+        .side-head {
+            display: flex; justify-content: space-between; align-items: baseline;
+            padding: 14px 16px 8px;
+        }
+        .side-head h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+        .emitter-list {
+            display: flex; flex-direction: column; gap: 6px;
+            padding: 0 12px 12px;
+            max-height: 38vh; overflow-y: auto;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .empty { padding: 14px; color: var(--muted); font-size: 14px; border: 1px dashed var(--border); border-radius: 8px; text-align: center; }
+
+        .em-card {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 8px 8px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--panel-2);
+            cursor: pointer;
+            border-left: 4px solid var(--em);
+        }
+        .em-card:hover { border-color: var(--border-strong); border-left-color: var(--em); }
+        .em-card.selected { background: var(--panel-3); border-color: var(--em); box-shadow: 0 0 0 1px var(--em) inset; }
+        .em-card.lost { opacity: .55; }
+        .em-card.is-hidden .em-name { text-decoration: line-through; opacity: .6; }
+        .em-chip {
+            font-family: var(--mono); font-weight: 700; font-size: 13px;
+            padding: 2px 7px; border-radius: 6px;
+            background: var(--em); color: #071019; flex-shrink: 0;
+        }
+        .em-main { flex: 1; min-width: 0; }
+        .em-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .em-name .unk { color: var(--muted); font-style: italic; font-weight: 500; }
+        .em-sub { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); margin-top: 2px; flex-wrap: wrap; }
+        .badge {
+            font-size: 11px; font-weight: 700; letter-spacing: .3px;
+            padding: 1px 6px; border-radius: 4px;
+            border: 1px solid var(--border-strong); color: var(--faint);
+        }
+        .badge.ok { border-color: rgba(61,220,132,.5); color: var(--ok); }
+        .badge.warn { border-color: rgba(255,176,32,.5); color: var(--warn); }
+
+        .workbench { flex: 1; overflow-y: auto; padding: 14px 16px 24px; }
+        .wb-head { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+        .wb-head .em-chip { font-size: 16px; padding: 4px 10px; }
+        .wb-head h2 { margin: 0; font-size: 18px; }
+        .wb-head .sub { font-size: 13px; color: var(--muted); }
+
+        .step {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 10px;
+            background: var(--panel-2);
+            overflow: hidden;
+        }
+        .step-head {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px;
+            font-weight: 700;
+        }
+        .step-head .n {
+            width: 24px; height: 24px; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: var(--panel-3); font-size: 12px; flex-shrink: 0;
+        }
+        .step-head .state { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--muted); }
+        .step.done .step-head .n { background: var(--ok); color: #03170b; }
+        .step.done .step-head .state { color: var(--ok); }
+        .step.active { border-color: var(--accent); }
+        .step.active .step-head .n { background: var(--accent); color: var(--accent-ink); }
+        .step.active .step-head .state { color: var(--accent); }
+        .step.warn { border-color: var(--warn); }
+        .step.warn .step-head .n { background: var(--warn); color: #1d1300; }
+        .step.warn .step-head .state { color: var(--warn); }
+        .step-body { padding: 0 12px 12px 46px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+        .step-body p { margin: 0; color: var(--muted); }
+        .step-body p b { color: var(--text); }
+
+        .kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 13px; }
+        .kv dt { color: var(--muted); }
+        .kv dd { margin: 0; font-family: var(--mono); }
+
+        .meter { height: 6px; border-radius: 999px; background: var(--panel-3); overflow: hidden; }
+        .meter > i { display: block; height: 100%; border-radius: 999px; background: var(--warn); transition: width .2s; }
+        .meter.good > i { background: var(--ok); }
+        .meter-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+        .meter-row b { color: var(--text); font-family: var(--mono); }
+
+        .lob-list { display: flex; flex-direction: column; gap: 2px; max-height: 140px; overflow-y: auto; }
+        .lob-item {
+            display: flex; align-items: center; gap: 8px;
+            font-family: var(--mono); font-size: 12px;
+            padding: 3px 4px 3px 8px; border-radius: 5px; background: #0f1823;
+        }
+        .lob-item span:first-child { color: var(--muted); width: 38px; }
+        .lob-item span:nth-child(2) { flex: 1; }
+        .lob-item .icon-btn { width: 24px; height: 24px; font-size: 13px; }
+
+        .row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .row > .btn { flex: 1; }
+
+        .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+        .chip { font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; border: 1px solid; }
+        .chip.ok { color: var(--ok); border-color: rgba(61,220,132,.5); background: rgba(61,220,132,.08); }
+        .chip.bad { color: var(--warn); border-color: rgba(255,176,32,.5); background: rgba(255,176,32,.08); }
+
+        .note {
+            font-size: 13px; padding: 8px 10px; border-radius: 8px;
+            background: rgba(62,198,255,.07); border: 1px solid rgba(62,198,255,.25); color: var(--text);
+        }
+        .note.warn { background: rgba(255,176,32,.08); border-color: rgba(255,176,32,.35); }
+        .aff { font-size: 11px; font-weight: 700; padding: 0 5px; border-radius: 4px; margin-left: 4px; }
+        .aff.hostile { color: var(--bad); border: 1px solid rgba(255,92,92,.5); }
+        .aff.friendly { color: var(--friendly); border: 1px solid rgba(77,141,255,.5); }
+        .aff.neutral { color: var(--muted); border: 1px solid var(--border-strong); }
+
+        select.field, input.field {
+            width: 100%; padding: 8px 10px; border-radius: 8px;
+            border: 1px solid var(--border-strong); background: #0b1520;
+        }
+        select.field:focus, input.field:focus, .hdg-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+        /* ---------- Modals ---------- */
+        .modal {
+            position: fixed; inset: 0; z-index: 50;
+            display: none; align-items: center; justify-content: center;
+            background: rgba(3, 7, 11, .78); backdrop-filter: blur(4px);
+            padding: 16px;
+        }
+        .modal.open { display: flex; }
+        .dialog {
+            width: 100%; max-width: 640px; max-height: calc(100vh - 32px);
+            display: flex; flex-direction: column;
+            background: var(--panel); border: 1px solid var(--border-strong);
+            border-radius: 14px; box-shadow: 0 24px 60px rgba(0,0,0,.5);
+            overflow: hidden;
+        }
+        .dialog.wide { max-width: 1180px; }
+        .dialog-head { display: flex; align-items: flex-start; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+        .dialog-head h2 { margin: 0; font-size: 20px; }
+        .dialog-head .muted { font-size: 14px; }
+        .dialog-head .icon-btn { margin-left: auto; font-size: 18px; }
+        .dialog-body { padding: 18px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+        .dialog-foot { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--border); background: var(--panel-2); }
+        .dialog-foot .spacer { flex: 1; }
+
+        .welcome .dialog { max-width: 760px; }
+        .welcome h1 { margin: 0; font-size: 26px; }
+        .welcome .lede { font-size: 16px; color: var(--muted); margin: 4px 0 0; }
+        .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .flow-card { padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2); }
+        .flow-card .n { font-family: var(--mono); color: var(--accent); font-weight: 700; font-size: 13px; }
+        .flow-card h3 { margin: 2px 0 4px; font-size: 16px; }
+        .flow-card p { margin: 0; font-size: 13px; color: var(--muted); }
+        .grading { font-size: 14px; padding: 12px 14px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--border); }
+        .grading ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); }
+        .grading li b { color: var(--text); }
+        .name-row { display: flex; gap: 10px; }
+        .name-row input { flex: 1; font-size: 17px; padding: 12px 14px; }
+        .resume {
+            display: flex; gap: 12px; align-items: center; justify-content: space-between;
+            padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,176,32,.4); background: rgba(255,176,32,.07);
+            font-size: 14px;
+        }
+
+        /* Analyzer */
+        .an-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .an-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--panel-2); display: flex; flex-direction: column; gap: 6px; }
+        .an-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+        .an-card.done { border-color: rgba(61,220,132,.55); }
+        .an-card .k { font-size: 12px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+        .an-card .k .tick { color: var(--ok); }
+        .an-card .v { display: flex; align-items: baseline; gap: 6px; font-family: var(--mono); font-size: 22px; font-weight: 600; }
+        .an-card .v input { width: 130px; font-size: 20px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border-strong); background: #0b1520; font-family: var(--mono); }
+        .an-card .v small { font-size: 14px; color: var(--muted); font-weight: 400; }
+        .an-card .hint { font-size: 12px; color: var(--faint); }
+
+        .scope-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .scope-bar .meta { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+        .scope-instr {
+            padding: 10px 14px; border-radius: 8px;
+            background: rgba(62,198,255,.08); border: 1px solid rgba(62,198,255,.3);
+            font-size: 15px;
+        }
+        .scope-instr.ok { background: rgba(61,220,132,.08); border-color: rgba(61,220,132,.4); }
+        .scope-instr.bad { background: rgba(255,92,92,.08); border-color: rgba(255,92,92,.45); }
+        .scope-wrap { position: relative; height: 250px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); background: #05090d; flex-shrink: 0; }
+        #scope { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+
+        .lib-wrap { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+        .lib-scroll { max-height: 280px; overflow-y: auto; }
+        table.lib { width: 100%; border-collapse: collapse; font-size: 14px; }
+        table.lib th {
+            position: sticky; top: 0; z-index: 1;
+            text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .6px;
+            color: var(--muted); background: var(--panel-2); padding: 8px 10px; border-bottom: 1px solid var(--border);
+        }
+        table.lib th .unit { text-transform: none; letter-spacing: 0; }
+        table.lib td { padding: 7px 10px; border-bottom: 1px solid #16212d; }
+        table.lib td.num { font-family: var(--mono); }
+        table.lib tbody tr { cursor: pointer; }
+        table.lib tbody tr:hover { background: rgba(62,198,255,.06); }
+        table.lib tr.sel { background: rgba(62,198,255,.16) !important; box-shadow: inset 3px 0 0 var(--accent); }
+        table.lib tr.full td:first-child::after { content: "  best match"; font-size: 11px; color: var(--ok); font-weight: 700; }
+        table.lib td.m-ok { color: var(--ok); }
+        table.lib td.m-no { color: var(--faint); }
+        .lib-caption { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; gap: 10px; flex-wrap: wrap; }
+        .lib-caption h3 { margin: 0; font-size: 15px; }
+        .lib-caption span { font-size: 13px; color: var(--muted); }
+        .feedback { font-size: 14px; flex: 1; }
+        .feedback.ok { color: var(--ok); }
+        .feedback.bad { color: var(--bad); }
+
+        /* Reference & help */
+        .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); padding: 0 20px; background: var(--panel); }
+        .tabs button { padding: 10px 14px; background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer; color: var(--muted); font-weight: 600; }
+        .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
+        .help h3 { margin: 0 0 6px; font-size: 16px; }
+        .help p, .help li { color: var(--muted); font-size: 14px; }
+        .help p { margin: 0; }
+        .help ul, .help ol { margin: 0; padding-left: 20px; }
+        .help li b, .help p b { color: var(--text); }
+        .gloss { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; font-size: 14px; }
+        .gloss dt { font-family: var(--mono); font-weight: 700; color: var(--accent); }
+        .gloss dd { margin: 0; color: var(--muted); }
+
+        .export-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .export-table th { text-align: left; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+        .export-table td { padding: 8px; border-bottom: 1px solid #16212d; }
+        .warn-list { margin: 0; padding-left: 18px; color: var(--warn); font-size: 14px; }
+        .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .stat { padding: 10px 12px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--border); }
+        .stat .k { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+        .stat .v { font-size: 22px; font-weight: 700; font-family: var(--mono); }
+
+        @media (max-width: 1500px) {
+            .brand-sub, .operator { display: none; }
+        }
+        @media (max-width: 1100px) {
+            .layout { grid-template-columns: minmax(0, 1fr) 340px; }
+            .progress { display: none; }
+        }
+        @media (max-width: 820px) {
+            body { overflow: auto; }
+            .layout { grid-template-columns: 1fr; grid-template-rows: 70vh auto; }
+            .sidebar { border-left: 0; border-top: 1px solid var(--border); }
+            .guide { max-width: calc(100% - 28px); }
+            .hud { display: none; }
+            .flight { width: 250px; padding: 10px; gap: 8px; }
+            .hdg-row { flex-wrap: wrap; }
+            .hdg-row label { width: 100%; }
+            .flow, .an-cards, .stat-row { grid-template-columns: 1fr 1fr; }
+            .brand-sub, .operator { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="topbar">
+    <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+            <div class="brand-title">ESM Trainer</div>
+            <div class="brand-sub">ELINT tactical training simulator</div>
+        </div>
+    </div>
+    <nav class="progress" id="progress" aria-label="Mission progress"></nav>
+    <div class="top-actions">
+        <span class="operator" id="operator"></span>
+        <button class="btn ghost" id="btn-help">Help</button>
+        <button class="btn ghost" id="btn-reference">Reference library</button>
+        <button class="btn primary" id="btn-export">Finish &amp; export</button>
+    </div>
+</header>
+
+<main class="layout">
+    <section class="map-wrap" id="map-wrap">
+        <canvas id="map" aria-label="Tactical plot"></canvas>
+
+        <div class="overlay guide" id="guide" aria-live="polite">
+            <div class="guide-icon" id="guide-icon">→</div>
+            <div>
+                <div class="guide-label">Next step</div>
+                <div class="guide-text" id="guide-text">Enter your name to begin.</div>
+            </div>
+        </div>
+
+        <div class="overlay hud" id="hud">
+            <span>LAT</span><span id="hud-lat">--</span>
+            <span>LON</span><span id="hud-lon">--</span>
+            <span>HDG</span><span id="hud-hdg">--</span>
+            <span>SPD</span><span id="hud-spd">--</span>
+            <span>ALT</span><span id="hud-alt">--</span>
+            <span>TIME</span><span id="hud-time">--</span>
+            <span class="north">▲ North is up</span>
+        </div>
+
+        <div class="overlay flight" id="flight">
+            <div class="flight-title"><span>Aircraft</span></div>
+            <button class="toggle" id="btn-autopilot" aria-pressed="true">
+                <span>
+                    <b>Autopilot orbit</b>
+                    <small id="ap-sub">Circles the operating area for you</small>
+                </span>
+                <span class="sw" aria-hidden="true"></span>
+            </button>
+            <div class="hdg-row">
+                <label for="hdg-input">Heading</label>
+                <button class="btn small" id="hdg-left" title="Turn left 15°">−15°</button>
+                <div class="dial" id="hdg-dial" title="Drag to set heading"><div class="needle" id="hdg-needle"></div></div>
+                <input class="hdg-input" id="hdg-input" type="number" min="0" max="359" value="0" aria-label="Heading in degrees">
+                <button class="btn small" id="hdg-right" title="Turn right 15°">+15°</button>
+            </div>
+            <div class="slider-row">
+                <div class="lbl"><span>Speed</span><b><span id="spd-val">400</span> kt</b></div>
+                <input type="range" id="spd-slider" min="200" max="800" step="10" value="400" aria-label="Speed">
+            </div>
+            <div class="slider-row">
+                <div class="lbl"><span>Altitude</span><b><span id="alt-val">32,000</span> ft</b></div>
+                <input type="range" id="alt-slider" min="500" max="40000" step="500" value="32000" aria-label="Altitude">
+                <span class="help">Higher altitude = longer detection range</span>
+            </div>
+        </div>
+
+        <div class="overlay map-tools">
+            <div class="tools-label">Sim speed</div>
+            <div class="seg" id="time-seg">
+                <button data-ts="0" title="Pause (Space)">❚❚</button>
+                <button data-ts="1" class="on">1×</button>
+                <button data-ts="2">2×</button>
+                <button data-ts="4">4×</button>
+                <button data-ts="8">8×</button>
+            </div>
+            <div class="tools-label">Zoom</div>
+            <div class="seg">
+                <button id="zoom-out" title="Zoom out">−</button>
+                <button id="zoom-reset" title="Reset zoom">1:1</button>
+                <button id="zoom-in" title="Zoom in">+</button>
+            </div>
+        </div>
+
+        <div class="toasts" id="toasts"></div>
+    </section>
+
+    <aside class="sidebar">
+        <div class="side-head">
+            <h2>Detected emitters</h2>
+            <span class="muted" id="emitter-count" style="font-size: 13px;"></span>
+        </div>
+        <div class="emitter-list" id="emitter-list"></div>
+        <div class="workbench" id="workbench"></div>
+    </aside>
+</main>
+
+<!-- Welcome -->
+<div class="modal welcome open" id="welcome-modal">
+    <div class="dialog">
+        <div class="dialog-body">
+            <div>
+                <h1>ESM Trainer</h1>
+                <p class="lede">A hostile surface combatant is operating in this sector, mixed in with friendly and commercial traffic. Your job: <b>find it, identify it, fix its position, and report it.</b></p>
+            </div>
+            <div class="flow">
+                <div class="flow-card"><div class="n">STEP 1</div><h3>Identify</h3><p>Open the signal analyzer, measure PRI and pulse width, and match the radar in the library.</p></div>
+                <div class="flow-card"><div class="n">STEP 2</div><h3>Locate</h3><p>Drop 3+ lines of bearing from different positions, then build an AOP.</p></div>
+                <div class="flow-card"><div class="n">STEP 3</div><h3>Correlate</h3><p>Label the AOP with the platform class that carries those radars.</p></div>
+                <div class="flow-card"><div class="n">STEP 4</div><h3>Export</h3><p>Download your results file and hand it in.</p></div>
+            </div>
+            <div class="grading">
+                <b>How you're graded</b> (8 points per hostile platform):
+                <ul>
+                    <li><b>AOP semi-major axis &lt; 5 NM</b> (2 pts) and <b>semi-minor axis &lt; 5 NM</b> (2 pts)</li>
+                    <li><b>AOP center within 5 NM</b> of the platform's real position (2 pts)</li>
+                    <li><b>Correct platform label</b> on the AOP (2 pts)</li>
+                </ul>
+            </div>
+            <div class="note">The panel at the top left of the map always shows <b>your next step</b>. Follow it if you're unsure what to do.</div>
+            <div class="resume hidden" id="resume-box">
+                <span id="resume-text"></span>
+                <button class="btn small" id="btn-resume">Resume session</button>
+            </div>
+            <div>
+                <label for="name-input" class="muted" style="font-size: 13px;">Your name (as it should appear in the gradebook)</label>
+                <div class="name-row" style="margin-top: 6px;">
+                    <input class="field" id="name-input" placeholder="Last, First" autocomplete="name">
+                    <button class="btn primary" id="btn-start" disabled>Start mission</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analyzer -->
+<div class="modal" id="analyzer-modal">
+    <div class="dialog wide">
+        <div class="dialog-head">
+            <div>
+                <h2>Signal analyzer: <span id="an-title"></span></h2>
+                <div class="muted">Measure the pulse train, then find the radar in the library whose frequency, PRI and PW all match.</div>
+            </div>
+            <button class="icon-btn" data-close aria-label="Close">✕</button>
+        </div>
+        <div class="dialog-body">
+            <div class="an-cards">
+                <div class="an-card done">
+                    <div class="k"><span>1 · Frequency</span><span class="tick">✓</span></div>
+                    <div class="v"><span id="an-freq">--</span><small>GHz</small></div>
+                    <div class="hint">Measured automatically by the receiver.</div>
+                </div>
+                <div class="an-card" id="card-pri">
+                    <div class="k"><span>2 · PRI (pulse repetition interval)</span><span class="tick hidden">✓</span></div>
+                    <div class="v"><input id="an-pri" type="number" step="any" min="0" placeholder="—" aria-label="PRI in microseconds"><small>µs</small></div>
+                    <button class="btn small" id="btn-measure-pri">Measure PRI on scope</button>
+                </div>
+                <div class="an-card" id="card-pw">
+                    <div class="k"><span>3 · PW (pulse width)</span><span class="tick hidden">✓</span></div>
+                    <div class="v"><input id="an-pw" type="number" step="any" min="0" placeholder="—" aria-label="Pulse width in microseconds"><small>µs</small></div>
+                    <button class="btn small" id="btn-measure-pw">Measure PW on scope</button>
+                </div>
+            </div>
+
+            <div class="scope-bar">
+                <div class="seg" id="scope-seg">
+                    <button data-mode="live">Live</button>
+                    <button data-mode="pri">Measure PRI</button>
+                    <button data-mode="pw">Measure PW</button>
+                </div>
+                <span class="meta" id="scope-meta"></span>
+            </div>
+            <div class="scope-instr" id="scope-instr"></div>
+            <div class="scope-wrap"><canvas id="scope"></canvas></div>
+
+            <div>
+                <div class="lib-caption">
+                    <h3>4 · Pick the matching radar</h3>
+                    <span id="lib-hint"></span>
+                </div>
+                <div class="lib-wrap">
+                    <div class="lib-scroll">
+                        <table class="lib">
+                            <thead><tr><th>Radar</th><th>Freq <span class="unit">(GHz)</span></th><th>PRI <span class="unit">(µs)</span></th><th>PW <span class="unit">(µs)</span></th></tr></thead>
+                            <tbody id="lib-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="dialog-foot">
+            <div class="feedback" id="an-feedback"></div>
+            <button class="btn ghost" data-close>Cancel</button>
+            <button class="btn primary" id="btn-an-confirm" disabled>Confirm identification</button>
+        </div>
+    </div>
+</div>
+
+<!-- Reference -->
+<div class="modal" id="reference-modal">
+    <div class="dialog" style="max-width: 760px;">
+        <div class="dialog-head">
+            <div>
+                <h2>Reference library</h2>
+                <div class="muted">Radar parameters, and which platforms carry which radars.</div>
+            </div>
+            <button class="icon-btn" data-close aria-label="Close">✕</button>
+        </div>
+        <div class="tabs" id="ref-tabs">
+            <button data-tab="platforms" class="on">Platforms</button>
+            <button data-tab="radars">Radars</button>
+        </div>
+        <div class="dialog-body">
+            <div id="ref-platforms">
+                <table class="lib"><thead><tr><th>Platform class</th><th>Affiliation</th><th>Radars carried</th></tr></thead><tbody id="ref-platform-body"></tbody></table>
+            </div>
+            <div id="ref-radars" class="hidden">
+                <table class="lib"><thead><tr><th>Radar</th><th>Freq <span class="unit">(GHz)</span></th><th>PRI <span class="unit">(µs)</span></th><th>PW <span class="unit">(µs)</span></th></tr></thead><tbody id="ref-radar-body"></tbody></table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Help -->
+<div class="modal" id="help-modal">
+    <div class="dialog" style="max-width: 760px;">
+        <div class="dialog-head">
+            <div>
+                <h2>How to run the mission</h2>
+                <div class="muted">You can reopen this any time with the Help button.</div>
+            </div>
+            <button class="icon-btn" data-close aria-label="Close">✕</button>
+        </div>
+        <div class="dialog-body help">
+            <div>
+                <h3>1. Identify each emitter</h3>
+                <ol>
+                    <li>Pick an emitter in the <b>Detected emitters</b> list, or click its bearing line on the map.</li>
+                    <li>Click <b>Analyze signal</b>. The frequency is filled in for you.</li>
+                    <li>Click <b>Measure PRI</b>, then click the leading edge of two <b>neighbouring</b> pulses.</li>
+                    <li>Click <b>Measure PW</b>. The scope zooms in on one pulse. Click its left edge, then its right edge.</li>
+                    <li>Pick the library row whose frequency, PRI and PW all match, and click <b>Confirm identification</b>.</li>
+                </ol>
+            </div>
+            <div>
+                <h3>2. Locate it with lines of bearing (LOBs)</h3>
+                <ul>
+                    <li>Click <b>Drop LOB</b> (or press <kbd>L</kbd>) to record the current bearing from your position.</li>
+                    <li>Let the aircraft move so the bearing changes before dropping the next one. Aim for <b>30° or more of spread</b> across your LOBs. Nearly parallel lines give a long, skinny AOP.</li>
+                    <li>Use <b>Sim speed</b> (bottom right) to speed up the flight while you wait.</li>
+                    <li>Three things shrink the AOP: <b>more LOBs</b>, <b>wider spread</b>, and <b>shorter range</b>. Turn the autopilot off and fly toward the emitter if the AOP stays too big.</li>
+                    <li>The emitter panel shows an <b>estimated AOP size</b> as you go. With 3 or more LOBs, click <b>Build AOP</b>. Both axes must be under <b>5 NM</b>. If it's too big, add LOBs (or delete a stray one) and rebuild.</li>
+                </ul>
+            </div>
+            <div>
+                <h3>3. Correlate to a platform</h3>
+                <p>Check which platforms carry the radar you identified (shown in the emitter panel and in the <b>Reference library</b>). Emitters on the same bearing may be on the same ship, and their radars together narrow it down. Choose the platform class for the AOP.</p>
+            </div>
+            <div>
+                <h3>4. Export</h3>
+                <p>Click <b>Finish &amp; export</b>, review the summary, and download your results file. Hand that <b>.json</b> file in. Your work is saved in this browser, so if you accidentally close the tab you can resume.</p>
+            </div>
+            <div>
+                <h3>Glossary</h3>
+                <dl class="gloss">
+                    <dt>ESM</dt><dd>Electronic Support Measures: passively intercepting and analysing emissions.</dd>
+                    <dt>PRI</dt><dd>Pulse Repetition Interval: time from the start of one pulse to the start of the next (µs).</dd>
+                    <dt>PW</dt><dd>Pulse Width: how long each pulse lasts (µs).</dd>
+                    <dt>LOB</dt><dd>Line of Bearing: the direction a signal arrived from, recorded at one moment.</dd>
+                    <dt>AOP</dt><dd>Area of Probability: the ellipse where several LOBs cross; the emitter is probably inside it.</dd>
+                    <dt>SMA / SMI</dt><dd>Semi-major / semi-minor axis: half the long and short widths of the AOP ellipse (NM).</dd>
+                </dl>
+            </div>
+            <div>
+                <h3>Shortcuts</h3>
+                <p><kbd>1</kbd>–<kbd>9</kbd> select emitter · <kbd>A</kbd> analyze · <kbd>L</kbd> drop LOB · <kbd>B</kbd> build AOP · <kbd>Space</kbd> pause · <kbd>+</kbd>/<kbd>−</kbd> zoom · <kbd>Esc</kbd> close window</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export -->
+<div class="modal" id="export-modal">
+    <div class="dialog" style="max-width: 760px;">
+        <div class="dialog-head">
+            <div>
+                <h2>Finish &amp; export</h2>
+                <div class="muted">Review your work, then download the results file for your instructor.</div>
+            </div>
+            <button class="icon-btn" data-close aria-label="Close">✕</button>
+        </div>
+        <div class="dialog-body" id="export-body"></div>
+        <div class="dialog-foot">
+            <span class="muted" style="font-size: 13px;">You can keep working and export again later.</span>
+            <span class="spacer"></span>
+            <button class="btn ghost" data-close>Keep working</button>
+            <button class="btn primary" id="btn-download">Download results file</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(() => {
+    'use strict';
+
+    // ===================================================================
+    // Scenario data (kept identical to index.html so autograder.html works)
+    // ===================================================================
+    const RADAR_PROFILES = {
+        "AN/APS-145 (AEW)": { freq: 0.420, pri: 3500, pw: 15.0 },
+        "AN/SPS-49": { freq: 0.850, pri: 1000, pw: 12.0 },
+        "Type 517M Search": { freq: 1.300, pri: 4500, pw: 20.0 },
+        "MR-710 Top Steer": { freq: 1.300, pri: 2000, pw: 3.0 },
+        "AN/SPY-1D": { freq: 3.300, pri: 800, pw: 3.0 },
+        "AN/SPY-6(V)1": { freq: 3.300, pri: 750, pw: 2.5 },
+        "AN/APY-1 (AWACS)": { freq: 3.100, pri: 4000, pw: 10.0 },
+        "AN/APY-2 (AWACS)": { freq: 3.150, pri: 4200, pw: 9.0 },
+        "KJ-2000 Main": { freq: 3.100, pri: 3800, pw: 8.0 },
+        "Type 346 Dragon Eye": { freq: 3.200, pri: 1000, pw: 2.0 },
+        "Type 346B Search": { freq: 3.200, pri: 1200, pw: 1.5 },
+        "Type 382 Top Knot": { freq: 2.900, pri: 1350, pw: 2.0 },
+        "Top Plate SGR-200": { freq: 2.900, pri: 1500, pw: 1.2 },
+        "Raymarine Pathfinder": { freq: 3.050, pri: 1000, pw: 0.3 },
+        "AN/SPS-67": { freq: 5.600, pri: 650, pw: 1.5 },
+        "Type 364 Seagull C": { freq: 5.600, pri: 750, pw: 1.0 },
+        "Type 364 Mod 1": { freq: 5.600, pri: 900, pw: 0.9 },
+        "Type 381 Rice Shield": { freq: 5.400, pri: 1100, pw: 1.8 },
+        "AN/APG-79": { freq: 9.800, pri: 400, pw: 0.5 },
+        "AN/APG-81": { freq: 9.800, pri: 350, pw: 0.4 },
+        "AN/SPS-73": { freq: 9.400, pri: 900, pw: 0.1 },
+        "Type 366 Band Stand": { freq: 9.400, pri: 600, pw: 0.8 },
+        "Type 366 Mod 2": { freq: 9.400, pri: 800, pw: 0.6 },
+        "Type 344 Fire Control": { freq: 9.200, pri: 250, pw: 0.3 },
+        "Type 1475": { freq: 9.700, pri: 380, pw: 0.4 },
+        "N011M Bars": { freq: 9.600, pri: 450, pw: 0.7 },
+        "Irbis-E": { freq: 9.600, pri: 420, pw: 0.6 },
+        "Tombstone Flap Lid": { freq: 10.100, pri: 200, pw: 0.5 },
+        "Furuno FAR-2218": { freq: 9.410, pri: 600, pw: 0.08 },
+        "HALO-6 Navigation": { freq: 9.410, pri: 500, pw: 0.12 },
+        "JRC JMA-9122": { freq: 9.410, pri: 550, pw: 0.1 },
+        "Garmin Cyclone": { freq: 9.410, pri: 480, pw: 0.09 }
+    };
+
+    const PLATFORM_LIBRARY = [
+        { class: "PLAN Type 055", affiliation: "hostile", radars: ["Type 346B Search", "Type 364 Mod 1", "Type 366 Mod 2"] },
+        { class: "PLAN Type 052D", affiliation: "hostile", radars: ["Type 346 Dragon Eye", "Type 364 Seagull C", "Type 366 Band Stand"] },
+        { class: "PLAN Type 054A", affiliation: "hostile", radars: ["Type 382 Top Knot", "Type 366 Band Stand", "Type 344 Fire Control"] },
+        { class: "VMF Sovremenny", affiliation: "hostile", radars: ["MR-710 Top Steer", "Type 366 Mod 2"] },
+        { class: "USN Arleigh Burke", affiliation: "friendly", radars: ["AN/SPY-1D", "AN/SPS-67", "AN/SPS-73"] },
+        { class: "USN Carrier", affiliation: "friendly", radars: ["AN/SPY-6(V)1", "AN/SPS-49", "AN/SPS-73"] },
+        { class: "E-3 Sentry (AWACS)", affiliation: "friendly", radars: ["AN/APY-1 (AWACS)"] },
+        { class: "E-2C Hawkeye", affiliation: "friendly", radars: ["AN/APS-145 (AEW)"] },
+        { class: "F/A-18 CAP", affiliation: "friendly", radars: ["AN/APG-79"] },
+        { class: "J-20 CAP", affiliation: "hostile", radars: ["Type 1475"] },
+        { class: "Commercial Freighter", affiliation: "neutral", radars: ["Furuno FAR-2218", "Raymarine Pathfinder"] },
+        { class: "Commercial Fishing", affiliation: "neutral", radars: ["HALO-6 Navigation"] },
+        { class: "Commercial Cruise Liner", affiliation: "neutral", radars: ["JRC JMA-9122", "Garmin Cyclone"] },
+        { class: "Coastal Defense Site", affiliation: "hostile", radars: ["Type 517M Search", "Tombstone Flap Lid"] }
+    ];
+
+    // AOP labels. These strings are what autograder.html compares against.
+    const CORRELATION_CLASSES = [
+        "PLAN Type 055", "PLAN Type 052D", "PLAN Type 054A", "VMF Sovremenny", "Coastal Defense",
+        "USN Arleigh Burke", "USN Carrier", "Airborne (AWACS/AEW)", "Airborne (Fighter)", "Commercial Vessel"
+    ];
+
+    const SCENARIO_ENTITIES = [
+        { id: 'E2', name: 'PLAN Type 052D', affiliation: 'hostile', domain: 'surface', x: 200, y: 150, alt: 80, radars: ["Type 346 Dragon Eye", "Type 366 Band Stand"] },
+        { id: 'E5', name: 'Freighter A', affiliation: 'neutral', domain: 'surface', x: 400, y: 250, alt: 50, radars: ["Furuno FAR-2218"] },
+        { id: 'E8', name: 'USN Arleigh Burke', affiliation: 'friendly', domain: 'surface', x: 850, y: 650, alt: 80, radars: ["AN/SPY-1D"] }
+    ];
+
+    // ===================================================================
+    // Constants
+    // ===================================================================
+    const PX_PER_NM = 3.5;
+    const toLat = y => 25.122 + (y / -10000);
+    const toLon = x => 121.560 + (x / 10000);
+    const AOP_LIMIT_NM = 5;
+    const MIN_LOBS = 3;
+    const GOOD_SPREAD_DEG = 30;
+    const MIN_SPREAD_DEG = 12;
+    const AUTO_ID_THRESHOLD = 4;
+    const LOB_ERROR_DEG = 0.75;
+    const LINE_LEN = 4000;
+    const TICK_MS = 1000 / 60;
+    const ORBIT = { x: 650, y: 425, r: 250 };
+    const SAVE_KEY = 'esm-trainer-session-v1';
+    const EMITTER_COLORS = ['#4cc9f0', '#f8961e', '#c77dff', '#f15bb5', '#00f5d4', '#fee440', '#90be6d', '#ff8fab'];
+    const LIB_TOL = { freq: 0.015, pri: 0.05, pw: 0.15 };
+    // Instructors can turn off library match hints with ?assist=0
+    const PARAMS = new URLSearchParams(location.search);
+    const ASSIST = PARAMS.get('assist') !== '0';
+    // ?aop=legacy uses index.html's original AOP calculation
+    const AOP_METHOD = PARAMS.get('aop') === 'legacy' ? 'legacy' : 'lsq';
+
+    // ===================================================================
+    // State
+    // ===================================================================
+    const state = {
+        started: false,
+        studentName: '',
+        ownship: { x: 700, y: 600, heading: 0, speedKnots: 400, altitude: 32000 },
+        ticks: 0,
+        trail: [],
+        autopilot: true,
+        timeScale: 1,
+        zoom: 1,
+        emitters: [],
+        selectedId: null,
+        measurements: {},
+        attempts: {},
+        lobs: [],
+        aops: [],
+        autoIdUnlocked: false,
+        exported: false
+    };
+
+    // ===================================================================
+    // Helpers
+    // ===================================================================
+    const $ = sel => document.querySelector(sel);
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const norm360 = d => ((d % 360) + 360) % 360;
+    const fmtBrg = d => norm360(d).toFixed(1).padStart(5, '0') + '°';
+    const fmtPri = v => (v == null || isNaN(v)) ? '—' : (+v).toFixed(1);
+    const fmtPw = v => (v == null || isNaN(v)) ? '—' : ((+v) < 1 ? (+v).toFixed(3) : (+v).toFixed(2));
+    const fmtNm = px => (px / PX_PER_NM).toFixed(2);
+    const fmtClock = ticks => {
+        const s = Math.floor(ticks / 60);
+        return `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+    };
+    const bearingFrom = (fx, fy, tx, ty) => norm360(Math.atan2(ty - fy, tx - fx) * 180 / Math.PI + 90);
+    const dirOf = brg => { const r = (brg - 90) * Math.PI / 180; return { dx: Math.cos(r), dy: Math.sin(r) }; };
+
+    const emitterById = id => state.emitters.find(e => e.id === id);
+    const lobsFor = id => state.lobs.filter(l => l.emitterId === id);
+    const aopFor = id => state.aops.find(a => a.emitterId === id);
+    const selected = () => emitterById(state.selectedId);
+    const platformsFor = radarKey => PLATFORM_LIBRARY.filter(p => p.radars.includes(radarKey));
+    const aopPasses = a => a.radiusX / PX_PER_NM < AOP_LIMIT_NM && a.radiusY / PX_PER_NM < AOP_LIMIT_NM;
+
+    // Smallest arc (degrees) containing every bearing.
+    function bearingSpread(bearings) {
+        if (bearings.length < 2) return 0;
+        const s = bearings.map(norm360).sort((a, b) => a - b);
+        let maxGap = 360 - s[s.length - 1] + s[0];
+        for (let i = 1; i < s.length; i++) maxGap = Math.max(maxGap, s[i] - s[i - 1]);
+        return 360 - maxGap;
+    }
+
+    function niceStep(raw) {
+        const p = Math.pow(10, Math.floor(Math.log10(raw)));
+        const m = raw / p;
+        return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p;
+    }
+
+    function fitCanvas(canvas) {
+        const r = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const w = Math.max(1, Math.round(r.width));
+        const h = Math.max(1, Math.round(r.height));
+        if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+            canvas.width = Math.round(w * dpr);
+            canvas.height = Math.round(h * dpr);
+        }
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        return { ctx, w, h };
+    }
+
+    function hexA(hex, a) {
+        const n = parseInt(hex.slice(1), 16);
+        return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+    }
+
+    function toast(msg, type = '') {
+        const el = document.createElement('div');
+        el.className = `toast ${type}`;
+        el.textContent = msg;
+        $('#toasts').appendChild(el);
+        requestAnimationFrame(() => el.classList.add('show'));
+        setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 3200);
+    }
+
+    // ===================================================================
+    // Simulation
+    // ===================================================================
+    function setHeading(deg, manual) {
+        state.ownship.heading = norm360(deg);
+        if (manual && state.autopilot) {
+            setAutopilot(false);
+            toast('Autopilot off: you are flying manually.', 'warn');
+        }
+        renderFlight();
+    }
+
+    function setAutopilot(on) {
+        state.autopilot = on;
+        $('#btn-autopilot').setAttribute('aria-pressed', String(on));
+        $('#ap-sub').textContent = on ? 'Circles the operating area for you' : 'Off: steer with the heading controls';
+    }
+
+    function autopilotStep() {
+        const o = state.ownship;
+        const dx = ORBIT.x - o.x, dy = ORBIT.y - o.y;
+        const distance = Math.hypot(dx, dy);
+        const bearingToCenter = norm360(Math.atan2(dy, dx) * 180 / Math.PI + 90);
+        const correction = Math.max(-60, Math.min(60, (distance - ORBIT.r) * 0.3));
+        const desired = norm360(bearingToCenter + 90 - correction);
+        const diff = ((desired - o.heading + 540) % 360) - 180;
+        o.heading = Math.abs(diff) > 0.5 ? norm360(o.heading + Math.sign(diff) * 0.5) : desired;
+    }
+
+    function step() {
+        const o = state.ownship;
+        if (state.autopilot) autopilotStep();
+        const d = dirOf(o.heading);
+        const speed = (o.speedKnots / 400) * 0.1;
+        o.x += d.dx * speed;
+        o.y += d.dy * speed;
+        state.ticks++;
+
+        if (state.ticks % 20 === 0) {
+            state.trail.push({ x: o.x, y: o.y });
+            if (state.trail.length > 500) state.trail.shift();
+        }
+
+        const seen = new Set();
+        SCENARIO_ENTITIES.forEach(entity => {
+            const dist = Math.hypot(entity.x - o.x, entity.y - o.y);
+            const detectionRange = 1.23 * (Math.sqrt(o.altitude) + Math.sqrt(entity.alt)) * PX_PER_NM;
+            if (dist >= detectionRange) return;
+            const brg = bearingFrom(o.x, o.y, entity.x, entity.y);
+            entity.radars.forEach(rKey => {
+                const em = getOrCreateEmitter(entity, rKey);
+                em.bearing = brg;
+                seen.add(em.id);
+            });
+        });
+        state.emitters.forEach(em => {
+            const was = em.inContact;
+            em.inContact = seen.has(em.id);
+            if (was && !em.inContact) toast(`Lost contact with E${em.num}. Climb or fly closer to regain it.`, 'warn');
+            else if (!was && em.inContact) toast(`Regained contact with E${em.num}.`);
+        });
+    }
+
+    function getOrCreateEmitter(entity, rKey) {
+        // Same ID format as index.html so userMeasurements keys stay compatible
+        const id = `${entity.id}-${rKey.replace(/\s+/g, '')}`;
+        let em = emitterById(id);
+        if (!em) {
+            const num = state.emitters.length + 1;
+            em = { id, num, radarKey: rKey, bearing: 0, inContact: true, identified: false, hidden: false, color: EMITTER_COLORS[(num - 1) % EMITTER_COLORS.length] };
+            state.emitters.push(em);
+            if (state.autoIdUnlocked) autoIdentify(em);
+            if (!state.selectedId) state.selectedId = em.id;
+            if (state.started && state.ticks > 1) toast(`New signal detected: E${num}`);
+        }
+        return em;
+    }
+
+    function autoIdentify(em) {
+        const p = RADAR_PROFILES[em.radarKey];
+        em.identified = true;
+        state.measurements[em.id] = { pri: p.pri, pw: p.pw, type: em.radarKey, success: true, auto: true };
+    }
+
+    function checkAutoId() {
+        const manual = Object.values(state.measurements).filter(m => !m.auto).length;
+        if (!state.autoIdUnlocked && manual >= AUTO_ID_THRESHOLD) {
+            state.autoIdUnlocked = true;
+            toast(`Auto-identification unlocked (${AUTO_ID_THRESHOLD} manual IDs). New signals are now identified for you.`, 'ok');
+            state.emitters.filter(e => !e.identified).forEach(autoIdentify);
+        }
+    }
+
+    // ===================================================================
+    // Emitter actions
+    // ===================================================================
+    function selectEmitter(id) {
+        if (!emitterById(id)) return;
+        state.selectedId = id;
+        const card = document.querySelector(`.em-card[data-id="${CSS.escape(id)}"]`);
+        if (card) card.scrollIntoView({ block: 'nearest' });
+    }
+
+    function dropLob(id) {
+        const em = emitterById(id);
+        if (!em) return;
+        if (!em.inContact) return toast(`No signal from E${em.num}. Can't take a bearing.`, 'bad');
+        const o = state.ownship;
+        const prev = lobsFor(id);
+        const last = prev[prev.length - 1];
+        const error = (Math.random() * 2 - 1) * LOB_ERROR_DEG;
+        state.lobs.push({
+            id: Math.random().toString(36).slice(2, 10),
+            emitterId: id,
+            seq: prev.length ? Math.max(...prev.map(l => l.seq)) + 1 : 1,
+            x: o.x, y: o.y,
+            bearing: norm360(em.bearing + error),
+            time: fmtClock(state.ticks)
+        });
+        if (last && Math.abs(((em.bearing - last.bearing + 540) % 360) - 180) < 3) {
+            toast(`LOB dropped, but it's almost parallel to your last one. Let the aircraft move further first.`, 'warn');
+        } else {
+            toast(`LOB ${prev.length + 1} dropped for E${em.num}`, 'ok');
+        }
+        saveSession();
+    }
+
+    function deleteLob(lobId) {
+        state.lobs = state.lobs.filter(l => l.id !== lobId);
+        saveSession();
+    }
+
+    function clearLobs(id) {
+        state.lobs = state.lobs.filter(l => l.emitterId !== id);
+        saveSession();
+    }
+
+    function intersect(l1, l2) {
+        const a = dirOf(l1.bearing), b = dirOf(l2.bearing);
+        const det = a.dx * b.dy - a.dy * b.dx;
+        if (Math.abs(det) < 0.001) return null;
+        const ex = l2.x - l1.x, ey = l2.y - l1.y;
+        const t1 = (ex * b.dy - ey * b.dx) / det;
+        const t2 = (ex * a.dy - ey * a.dx) / det;
+        if (t1 < 0 || t2 < 0) return null;
+        return { x: l1.x + t1 * a.dx, y: l1.y + t1 * a.dy };
+    }
+
+    // Error ellipse (radii = 2σ, 10 px floor) from a 2×2 covariance, same convention as index.html
+    function ellipseFrom(cx, cy, cxx, cyy, cxy) {
+        const d = Math.sqrt(((cxx - cyy) / 2) ** 2 + cxy * cxy);
+        const l1 = (cxx + cyy) / 2 + d;
+        const l2 = Math.max(0, (cxx + cyy) / 2 - d);
+        return {
+            x: cx, y: cy,
+            radiusX: Math.max(10, Math.sqrt(l1) * 2),
+            radiusY: Math.max(10, Math.sqrt(l2) * 2),
+            rotation: (cxx !== cyy || cxy !== 0) ? 0.5 * Math.atan2(2 * cxy, cxx - cyy) : 0
+        };
+    }
+
+    // Original method: covariance of the pairwise crossing points. Adding LOBs
+    // tends to make this ellipse larger, so it is only kept for comparison.
+    function legacyFix(lobs) {
+        const pts = [];
+        for (let i = 0; i < lobs.length; i++)
+            for (let j = i + 1; j < lobs.length; j++) {
+                const p = intersect(lobs[i], lobs[j]);
+                if (p) pts.push(p);
+            }
+        if (pts.length < 3) return { error: 'These LOBs don\'t cross each other well enough. Drop more from different positions.' };
+        const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+        const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+        let cxx = 0, cyy = 0, cxy = 0;
+        pts.forEach(p => { const dx = p.x - cx, dy = p.y - cy; cxx += dx * dx; cyy += dy * dy; cxy += dx * dy; });
+        return ellipseFrom(cx, cy, cxx / pts.length, cyy / pts.length, cxy / pts.length);
+    }
+
+    // Least-squares bearing fix: the point closest to every LOB, weighted by
+    // range, with covariance from the known bearing error. More LOBs, wider
+    // spread and shorter range all shrink the ellipse.
+    function lsqFix(lobs) {
+        if (lobs.length < 2) return { error: 'Need at least 2 LOBs.' };
+        const sigma = (LOB_ERROR_DEG / Math.sqrt(3)) * Math.PI / 180;
+        let est = null;
+        for (let it = 0; it < 3; it++) {
+            let a = 0, b = 0, c = 0, bx = 0, by = 0;
+            for (const l of lobs) {
+                const d = dirOf(l.bearing);
+                const nx = -d.dy, ny = d.dx;
+                const r = est ? Math.max(1, Math.hypot(est.x - l.x, est.y - l.y)) : 1;
+                const w = est ? 1 / (sigma * sigma * r * r) : 1;
+                const k = nx * l.x + ny * l.y;
+                a += w * nx * nx; b += w * ny * ny; c += w * nx * ny;
+                bx += w * nx * k; by += w * ny * k;
+            }
+            const det = a * b - c * c;
+            if (Math.abs(det) < 1e-12 * (a * b || 1)) return { error: 'These LOBs are parallel. Let the bearing change before dropping more.' };
+            est = { x: (b * bx - c * by) / det, y: (a * by - c * bx) / det, cxx: b / det, cyy: a / det, cxy: -c / det };
+        }
+        const behind = lobs.some(l => { const d = dirOf(l.bearing); return d.dx * (est.x - l.x) + d.dy * (est.y - l.y) <= 0; });
+        if (behind) return { error: 'These LOBs don\'t converge in front of the aircraft. Delete any stray LOB and try again.' };
+        return ellipseFrom(est.x, est.y, est.cxx, est.cyy, est.cxy);
+    }
+
+    const computeFix = lobs => AOP_METHOD === 'legacy' ? legacyFix(lobs) : lsqFix(lobs);
+
+    function buildAop(id) {
+        const em = emitterById(id);
+        const lobs = lobsFor(id);
+        if (!em) return;
+        if (lobs.length < MIN_LOBS) return toast(`Need at least ${MIN_LOBS} LOBs to build an AOP.`, 'bad');
+
+        const fix = computeFix(lobs);
+        if (fix.error) return toast(fix.error, 'bad');
+
+        const existing = aopFor(id);
+        const aop = {
+            emitterId: id,
+            ...fix,
+            correlation: existing ? existing.correlation : null,
+            lobCount: lobs.length
+        };
+        if (existing) Object.assign(existing, aop); else state.aops.push(aop);
+
+        if (aopPasses(aop)) toast(`AOP built for E${em.num}: ${fmtNm(aop.radiusX)} × ${fmtNm(aop.radiusY)} NM. Within limits.`, 'ok');
+        else toast(`AOP built, but it's too large (${fmtNm(aop.radiusX)} × ${fmtNm(aop.radiusY)} NM). Both axes must be under ${AOP_LIMIT_NM} NM.`, 'warn');
+        saveSession();
+    }
+
+    function deleteAop(id) {
+        state.aops = state.aops.filter(a => a.emitterId !== id);
+        saveSession();
+    }
+
+    function setCorrelation(id, value) {
+        const aop = aopFor(id);
+        if (!aop) return;
+        aop.correlation = value || null;
+        if (value) toast(`AOP for E${emitterById(id).num} labeled ${value}`, 'ok');
+        saveSession();
+    }
+
+    // ===================================================================
+    // Map rendering
+    // ===================================================================
+    const mapCanvas = $('#map');
+    let view = { w: 1, h: 1 };
+
+    function toScreen(x, y) {
+        return [view.w / 2 + (x - state.ownship.x) * state.zoom, view.h / 2 + (y - state.ownship.y) * state.zoom];
+    }
+    function toWorld(sx, sy) {
+        return { x: state.ownship.x + (sx - view.w / 2) / state.zoom, y: state.ownship.y + (sy - view.h / 2) / state.zoom };
+    }
+
+    function drawLine(ctx, x1, y1, x2, y2) {
+        const [a, b] = toScreen(x1, y1), [c, d] = toScreen(x2, y2);
+        ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(c, d); ctx.stroke();
+    }
+
+    function drawMap() {
+        const { ctx, w, h } = fitCanvas(mapCanvas);
+        view = { w, h };
+        const z = state.zoom, o = state.ownship;
+        const sel = state.selectedId;
+
+        ctx.fillStyle = '#070c11';
+        ctx.fillRect(0, 0, w, h);
+
+        // Grid, 25 NM squares
+        const g = 25 * PX_PER_NM;
+        const tl = toWorld(0, 0), br = toWorld(w, h);
+        ctx.strokeStyle = '#0f1822';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = Math.floor(tl.x / g) * g; x <= br.x; x += g) { const [sx] = toScreen(x, 0); ctx.moveTo(sx, 0); ctx.lineTo(sx, h); }
+        for (let y = Math.floor(tl.y / g) * g; y <= br.y; y += g) { const [, sy] = toScreen(0, y); ctx.moveTo(0, sy); ctx.lineTo(w, sy); }
+        ctx.stroke();
+
+        // Coastline and island
+        ctx.strokeStyle = '#34485c';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        [[-500, -200], [0, 200], [-100, 600], [50, 1200]].forEach(([x, y], i) => { const [sx, sy] = toScreen(x, y); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); });
+        ctx.stroke();
+        ctx.beginPath();
+        [[600, 200], [750, 350], [720, 600], [550, 550]].forEach(([x, y], i) => { const [sx, sy] = toScreen(x, y); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); });
+        ctx.closePath();
+        ctx.fillStyle = '#122030';
+        ctx.fill();
+        ctx.stroke();
+
+        // Autopilot orbit
+        if (state.autopilot) {
+            const [sx, sy] = toScreen(ORBIT.x, ORBIT.y);
+            ctx.setLineDash([4, 8]);
+            ctx.strokeStyle = 'rgba(61,220,132,.18)';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.arc(sx, sy, ORBIT.r * z, 0, Math.PI * 2); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // Range rings around ownship
+        const ringNm = [5, 10, 25, 50, 100, 200].find(n => n * PX_PER_NM * z >= 90) || 200;
+        ctx.strokeStyle = 'rgba(142,163,184,.14)';
+        ctx.fillStyle = 'rgba(142,163,184,.55)';
+        ctx.font = '11px ui-monospace, Menlo, Consolas, monospace';
+        ctx.textAlign = 'center';
+        for (let i = 1; i <= 3; i++) {
+            const r = ringNm * i * PX_PER_NM * z;
+            ctx.beginPath(); ctx.arc(w / 2, h / 2, r, 0, Math.PI * 2); ctx.stroke();
+            ctx.fillText(`${ringNm * i} NM`, w / 2, h / 2 - r - 4);
+        }
+
+        // Trail
+        ctx.fillStyle = 'rgba(61,220,132,.28)';
+        state.trail.forEach(p => { const [sx, sy] = toScreen(p.x, p.y); ctx.fillRect(sx - 1, sy - 1, 2, 2); });
+
+        // Dropped LOBs
+        ctx.textAlign = 'left';
+        state.lobs.forEach(lob => {
+            const em = emitterById(lob.emitterId);
+            if (!em || em.hidden) return;
+            const isSel = em.id === sel;
+            const d = dirOf(lob.bearing);
+            ctx.strokeStyle = hexA(em.color, isSel ? 0.9 : 0.28);
+            ctx.lineWidth = isSel ? 1.8 : 1;
+            drawLine(ctx, lob.x, lob.y, lob.x + d.dx * LINE_LEN, lob.y + d.dy * LINE_LEN);
+            const [ox, oy] = toScreen(lob.x, lob.y);
+            ctx.fillStyle = hexA(em.color, isSel ? 1 : 0.4);
+            ctx.beginPath(); ctx.arc(ox, oy, isSel ? 3.5 : 2.5, 0, Math.PI * 2); ctx.fill();
+            if (isSel) {
+                ctx.font = 'bold 11px ui-monospace, Menlo, Consolas, monospace';
+                ctx.fillText(`E${em.num}·${lob.seq}`, ox + d.dx * 60 + 4, oy + d.dy * 60 - 4);
+            }
+        });
+
+        // Live bearing lines
+        state.emitters.forEach(em => {
+            if (!em.inContact || em.hidden) return;
+            const isSel = em.id === sel;
+            const d = dirOf(em.bearing);
+            if (isSel) {
+                ctx.strokeStyle = em.color; ctx.lineWidth = 2; ctx.setLineDash([]);
+            } else if (em.identified) {
+                ctx.strokeStyle = hexA(em.color, 0.4); ctx.lineWidth = 1; ctx.setLineDash([10, 6]);
+            } else {
+                ctx.strokeStyle = 'rgba(230,237,243,.22)'; ctx.lineWidth = 1; ctx.setLineDash([10, 8]);
+                ctx.lineDashOffset = -(performance.now() / 50) % 18;
+            }
+            drawLine(ctx, o.x, o.y, o.x + d.dx * LINE_LEN, o.y + d.dy * LINE_LEN);
+            ctx.setLineDash([]); ctx.lineDashOffset = 0;
+            const lx = w / 2 + d.dx * 150, ly = h / 2 + d.dy * 150;
+            ctx.font = 'bold 12px ui-monospace, Menlo, Consolas, monospace';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = isSel ? em.color : hexA(em.color, 0.7);
+            ctx.fillText(`E${em.num}`, lx + d.dy * 10, ly - d.dx * 10);
+        });
+
+        // AOPs
+        state.aops.forEach(aop => {
+            const em = emitterById(aop.emitterId);
+            if (!em) return;
+            const isSel = em.id === sel;
+            const [sx, sy] = toScreen(aop.x, aop.y);
+            ctx.beginPath();
+            ctx.ellipse(sx, sy, Math.max(2, aop.radiusX * z), Math.max(2, aop.radiusY * z), aop.rotation, 0, Math.PI * 2);
+            ctx.fillStyle = hexA(em.color, isSel ? 0.22 : 0.12);
+            ctx.fill();
+            ctx.strokeStyle = em.color;
+            ctx.lineWidth = isSel ? 2 : 1.2;
+            ctx.stroke();
+            ctx.beginPath(); ctx.arc(sx, sy, 2, 0, Math.PI * 2); ctx.fillStyle = em.color; ctx.fill();
+
+            const labelY = sy + Math.max(aop.radiusX, aop.radiusY) * z + 16;
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 12px system-ui, sans-serif';
+            ctx.fillStyle = '#e6edf3';
+            ctx.fillText(aop.correlation || `E${em.num} AOP (unlabeled)`, sx, labelY);
+            ctx.font = '11px ui-monospace, Menlo, Consolas, monospace';
+            ctx.fillStyle = aopPasses(aop) ? '#3ddc84' : '#ffb020';
+            ctx.fillText(`${fmtNm(aop.radiusX)} × ${fmtNm(aop.radiusY)} NM`, sx, labelY + 14);
+        });
+
+        // Link 16 friendlies
+        SCENARIO_ENTITIES.filter(e => e.affiliation === 'friendly').forEach(ent => {
+            const [sx, sy] = toScreen(ent.x, ent.y);
+            ctx.strokeStyle = '#4d8dff'; ctx.lineWidth = 2;
+            ctx.beginPath();
+            if (ent.domain === 'air') { ctx.arc(sx, sy, 9, Math.PI, 0); ctx.lineTo(sx - 9, sy); }
+            else ctx.arc(sx, sy, 9, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.fillStyle = '#4d8dff';
+            ctx.beginPath(); ctx.arc(sx, sy, 2, 0, Math.PI * 2); ctx.fill();
+            ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'left';
+            ctx.fillText('Friendly (Link 16)', sx + 13, sy + 4);
+        });
+
+        // Ownship
+        ctx.save();
+        ctx.translate(w / 2, h / 2);
+        ctx.rotate(o.heading * Math.PI / 180);
+        ctx.fillStyle = '#3ddc84';
+        ctx.shadowColor = 'rgba(61,220,132,.6)'; ctx.shadowBlur = 8;
+        ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(10, 11); ctx.lineTo(0, 5); ctx.lineTo(-10, 11); ctx.closePath(); ctx.fill();
+        ctx.restore();
+
+        // Scale bar (bottom centre)
+        const barNm = [5, 10, 25, 50, 100].find(n => n * PX_PER_NM * z >= 70) || 100;
+        const barPx = barNm * PX_PER_NM * z;
+        const bx = w / 2 - barPx / 2, by = h - 22;
+        ctx.strokeStyle = '#8ea3b8'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(bx, by - 5); ctx.lineTo(bx, by); ctx.lineTo(bx + barPx, by); ctx.lineTo(bx + barPx, by - 5); ctx.stroke();
+        ctx.fillStyle = '#8ea3b8'; ctx.font = '11px ui-monospace, Menlo, Consolas, monospace'; ctx.textAlign = 'center';
+        ctx.fillText(`${barNm} NM`, w / 2, by - 6);
+    }
+
+    function distToSegment(px, py, x1, y1, x2, y2) {
+        const l2 = (x2 - x1) ** 2 + (y2 - y1) ** 2;
+        let t = l2 ? ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2 : 0;
+        t = Math.max(0, Math.min(1, t));
+        return Math.hypot(px - (x1 + t * (x2 - x1)), py - (y1 + t * (y2 - y1)));
+    }
+
+    function handleMapClick(e) {
+        const r = mapCanvas.getBoundingClientRect();
+        const p = toWorld(e.clientX - r.left, e.clientY - r.top);
+        const tol = 10 / state.zoom;
+
+        // AOPs first
+        for (const aop of state.aops) {
+            const dx = p.x - aop.x, dy = p.y - aop.y;
+            const c = Math.cos(aop.rotation), s = Math.sin(aop.rotation);
+            const u = dx * c + dy * s, v = -dx * s + dy * c;
+            if ((u / aop.radiusX) ** 2 + (v / aop.radiusY) ** 2 <= 1 || Math.hypot(dx, dy) < tol) {
+                return selectEmitter(aop.emitterId);
+            }
+        }
+
+        let best = null, bestD = tol;
+        const o = state.ownship;
+        state.emitters.forEach(em => {
+            if (!em.inContact || em.hidden) return;
+            const d = dirOf(em.bearing);
+            const dist = distToSegment(p.x, p.y, o.x, o.y, o.x + d.dx * LINE_LEN, o.y + d.dy * LINE_LEN);
+            if (dist < bestD) { bestD = dist; best = em.id; }
+        });
+        state.lobs.forEach(lob => {
+            const em = emitterById(lob.emitterId);
+            if (!em || em.hidden) return;
+            const d = dirOf(lob.bearing);
+            const dist = distToSegment(p.x, p.y, lob.x, lob.y, lob.x + d.dx * LINE_LEN, lob.y + d.dy * LINE_LEN);
+            if (dist < bestD) { bestD = dist; best = em.id; }
+        });
+        if (best) selectEmitter(best);
+    }
+
+    function setZoom(z) {
+        state.zoom = Math.max(0.25, Math.min(6, z));
+    }
+
+    // ===================================================================
+    // Sidebar rendering
+    // ===================================================================
+    let lastKey = '';
+
+    function uiKey() {
+        return JSON.stringify([
+            state.selectedId,
+            state.emitters.map(e => [e.id, e.identified, e.hidden, e.inContact]),
+            state.lobs.map(l => l.id),
+            state.aops.map(a => [a.emitterId, a.correlation, a.radiusX, a.radiusY]),
+            state.started
+        ]);
+    }
+
+    function stepBadges(em) {
+        const lobs = lobsFor(em.id).length;
+        const aop = aopFor(em.id);
+        return [
+            `<span class="badge ${em.identified ? 'ok' : ''}">ID</span>`,
+            `<span class="badge ${lobs >= MIN_LOBS ? 'ok' : ''}">LOB ${lobs}</span>`,
+            `<span class="badge ${aop ? (aopPasses(aop) ? 'ok' : 'warn') : ''}">AOP</span>`,
+            `<span class="badge ${aop && aop.correlation ? 'ok' : ''}">LABEL</span>`
+        ].join('');
+    }
+
+    function renderEmitterList() {
+        const list = $('#emitter-list');
+        $('#emitter-count').textContent = state.emitters.length ? `${state.emitters.filter(e => e.identified).length}/${state.emitters.length} identified` : '';
+        if (!state.emitters.length) {
+            list.innerHTML = `<div class="empty">Listening… Signals appear here as your receiver detects them.</div>`;
+            return;
+        }
+        list.innerHTML = state.emitters.map(em => `
+            <div class="em-card ${em.id === state.selectedId ? 'selected' : ''} ${em.inContact ? '' : 'lost'} ${em.hidden ? 'is-hidden' : ''}"
+                 data-action="select" data-id="${esc(em.id)}" style="--em: ${em.color}">
+                <span class="em-chip">E${em.num}</span>
+                <div class="em-main">
+                    <div class="em-name">${em.identified ? esc(em.radarKey) : '<span class="unk">Unknown signal</span>'}</div>
+                    <div class="em-sub"><span class="mono" data-live="brg" data-id="${esc(em.id)}">${em.inContact ? fmtBrg(em.bearing) : 'no contact'}</span>${stepBadges(em)}</div>
+                </div>
+                <button class="icon-btn" data-action="toggle-hide" data-id="${esc(em.id)}" title="${em.hidden ? 'Show on map' : 'Hide from map'}" aria-label="${em.hidden ? 'Show on map' : 'Hide from map'}">${em.hidden ? '◌' : '◉'}</button>
+            </div>`).join('');
+    }
+
+    function affTag(aff) { return `<span class="aff ${aff}">${aff.toUpperCase()}</span>`; }
+
+    function renderWorkbench() {
+        const wb = $('#workbench');
+        const em = selected();
+        if (!em) {
+            wb.innerHTML = `<div class="empty">Select an emitter above to work it.</div>`;
+            return;
+        }
+        const lobs = lobsFor(em.id);
+        const aop = aopFor(em.id);
+        const platforms = em.identified ? platformsFor(em.radarKey) : [];
+        const allFriendlyNeutral = platforms.length && platforms.every(p => p.affiliation !== 'hostile');
+        const m = state.measurements[em.id];
+
+        const s1 = em.identified ? 'done' : 'active';
+        const s2 = lobs.length >= MIN_LOBS ? 'done' : (em.identified ? 'active' : '');
+        const s3 = aop ? (aopPasses(aop) ? 'done' : 'warn') : (lobs.length >= MIN_LOBS ? 'active' : '');
+        const s4 = aop && aop.correlation ? 'done' : (aop ? 'active' : '');
+
+        wb.innerHTML = `
+            <div class="wb-head" style="--em: ${em.color}">
+                <span class="em-chip">E${em.num}</span>
+                <div>
+                    <h2>${em.identified ? esc(em.radarKey) : 'Unknown signal'}</h2>
+                    <div class="sub">Bearing <b class="mono" data-live="wb-brg">${fmtBrg(em.bearing)}</b> · ${em.inContact ? 'In contact' : '<span style="color: var(--warn)">Contact lost</span>'}</div>
+                </div>
+            </div>
+
+            <div class="step ${s1}">
+                <div class="step-head"><span class="n">1</span>Identify the radar<span class="state">${em.identified ? '✓ Done' : 'To do'}</span></div>
+                <div class="step-body">
+                    ${em.identified ? `
+                        <dl class="kv">
+                            <dt>Freq</dt><dd>${RADAR_PROFILES[em.radarKey].freq.toFixed(3)} GHz</dd>
+                            <dt>PRI</dt><dd>${fmtPri(m && m.pri)} µs</dd>
+                            <dt>PW</dt><dd>${fmtPw(m && m.pw)} µs</dd>
+                        </dl>
+                        <div><p style="margin-bottom: 4px;">Carried by:</p>
+                        ${platforms.map(p => `<div style="font-size: 13px;">${esc(p.class)}${affTag(p.affiliation)}</div>`).join('') || '<p>No platform in the library.</p>'}</div>
+                        ${allFriendlyNeutral ? `<div class="note">This radar is only fitted to friendly or neutral platforms. You don't have to locate it (but you can for practice).</div>` : ''}
+                    ` : `
+                        <p>Open the analyzer, measure <b>PRI</b> and <b>PW</b>, and match the radar in the library.</p>
+                        <button class="btn primary block ${em.inContact ? 'pulse' : ''}" data-action="analyze" data-id="${esc(em.id)}" ${em.inContact ? '' : 'disabled'}>Analyze signal <kbd>A</kbd></button>
+                        ${em.inContact ? '' : '<p>No signal: fly closer or climb to regain contact.</p>'}
+                    `}
+                </div>
+            </div>
+
+            <div class="step ${s2}">
+                <div class="step-head"><span class="n">2</span>Take lines of bearing<span class="state">${lobs.length} / ${MIN_LOBS}+ LOBs</span></div>
+                <div class="step-body">
+                    <div>
+                        <div class="meter-row"><span>Bearing spread</span><b data-live="spread-text">—</b></div>
+                        <div class="meter" data-live="spread-meter"><i style="width: 0%"></i></div>
+                    </div>
+                    <p data-live="lob-hint"></p>
+                    <div data-live="est"></div>
+                    <div class="row">
+                        <button class="btn ${lobs.length < MIN_LOBS && !aop ? 'primary' : ''}" data-action="drop-lob" data-id="${esc(em.id)}" ${em.inContact ? '' : 'disabled'}>Drop LOB <kbd>L</kbd></button>
+                        ${lobs.length ? `<button class="btn danger small" data-action="clear-lobs" data-id="${esc(em.id)}" style="flex: 0 0 auto;">Clear all</button>` : ''}
+                    </div>
+                    ${lobs.length ? `<div class="lob-list">${lobs.map(l => `
+                        <div class="lob-item"><span>#${l.seq}</span><span>${fmtBrg(l.bearing)} · T+${l.time}</span>
+                        <button class="icon-btn" data-action="del-lob" data-lob="${l.id}" title="Delete this LOB" aria-label="Delete LOB ${l.seq}">✕</button></div>`).join('')}
+                    </div>` : ''}
+                </div>
+            </div>
+
+            <div class="step ${s3}">
+                <div class="step-head"><span class="n">3</span>Build the AOP<span class="state">${aop ? (aopPasses(aop) ? '✓ Within limits' : 'Too large') : 'To do'}</span></div>
+                <div class="step-body">
+                    ${aop ? `
+                        <dl class="kv">
+                            <dt>Center</dt><dd>${toLat(aop.y).toFixed(3)} N, ${toLon(aop.x).toFixed(3)} E</dd>
+                            <dt>Semi-major</dt><dd>${fmtNm(aop.radiusX)} NM</dd>
+                            <dt>Semi-minor</dt><dd>${fmtNm(aop.radiusY)} NM</dd>
+                            <dt>Built from</dt><dd>${aop.lobCount} LOBs</dd>
+                        </dl>
+                        <div class="chips">
+                            <span class="chip ${aop.radiusX / PX_PER_NM < AOP_LIMIT_NM ? 'ok' : 'bad'}">SMA ${aop.radiusX / PX_PER_NM < AOP_LIMIT_NM ? '<' : '≥'} ${AOP_LIMIT_NM} NM</span>
+                            <span class="chip ${aop.radiusY / PX_PER_NM < AOP_LIMIT_NM ? 'ok' : 'bad'}">SMI ${aop.radiusY / PX_PER_NM < AOP_LIMIT_NM ? '<' : '≥'} ${AOP_LIMIT_NM} NM</span>
+                        </div>
+                        ${aopPasses(aop) ? '' : `<div class="note warn">Too large to score. Keep adding LOBs as the bearing changes, fly closer to the emitter (autopilot off, steer toward its bearing), or delete a stray LOB. Then rebuild.</div>`}
+                        <div class="row">
+                            <button class="btn ${aopPasses(aop) ? '' : 'primary'}" data-action="build-aop" data-id="${esc(em.id)}" ${lobs.length >= MIN_LOBS ? '' : 'disabled'}>Rebuild from ${lobs.length} LOBs</button>
+                            <button class="btn danger small" data-action="del-aop" data-id="${esc(em.id)}" style="flex: 0 0 auto;">Delete</button>
+                        </div>
+                    ` : `
+                        <p>Combines your LOBs into an ellipse where the emitter probably is. Needs ${MIN_LOBS}+ LOBs.</p>
+                        <button class="btn ${lobs.length >= MIN_LOBS ? 'primary pulse' : ''} block" data-action="build-aop" data-id="${esc(em.id)}" ${lobs.length >= MIN_LOBS ? '' : 'disabled'}>Build AOP <kbd>B</kbd></button>
+                    `}
+                </div>
+            </div>
+
+            <div class="step ${s4}">
+                <div class="step-head"><span class="n">4</span>Label the platform<span class="state">${aop && aop.correlation ? '✓ Labeled' : 'To do'}</span></div>
+                <div class="step-body">
+                    ${aop ? `
+                        <p>Which platform class is at this AOP? Use the radar(s) you identified on this bearing.</p>
+                        <select class="field" data-action="correlate" data-id="${esc(em.id)}">
+                            <option value="">Choose platform class…</option>
+                            ${CORRELATION_CLASSES.map(c => `<option ${aop.correlation === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+                        </select>
+                        <div data-live="coloc"></div>
+                    ` : `<p>Available once this emitter has an AOP.</p>`}
+                </div>
+            </div>`;
+    }
+
+    function updateLive() {
+        document.querySelectorAll('[data-live="brg"]').forEach(el => {
+            const em = emitterById(el.dataset.id);
+            if (em) el.textContent = em.inContact ? fmtBrg(em.bearing) : 'no contact';
+        });
+
+        const em = selected();
+        if (!em) return;
+        const brgEl = document.querySelector('[data-live="wb-brg"]');
+        if (brgEl) brgEl.textContent = fmtBrg(em.bearing);
+
+        const lobs = lobsFor(em.id);
+        const spread = bearingSpread(lobs.map(l => l.bearing));
+        const liveSpread = bearingSpread([...lobs.map(l => l.bearing), em.bearing]);
+        const sText = document.querySelector('[data-live="spread-text"]');
+        const sMeter = document.querySelector('[data-live="spread-meter"]');
+        const hint = document.querySelector('[data-live="lob-hint"]');
+        if (sText) sText.textContent = lobs.length >= 2 ? `${spread.toFixed(0)}° (aim for ${GOOD_SPREAD_DEG}°+)` : `— (aim for ${GOOD_SPREAD_DEG}°+)`;
+        if (sMeter) {
+            sMeter.classList.toggle('good', spread >= GOOD_SPREAD_DEG);
+            sMeter.firstElementChild.style.width = `${Math.min(100, spread / GOOD_SPREAD_DEG * 100)}%`;
+        }
+        if (hint) {
+            if (!lobs.length) hint.innerHTML = 'Drop your first LOB now. Then let the aircraft move before the next one.';
+            else if (lobs.length < MIN_LOBS) {
+                const moved = liveSpread - spread;
+                hint.innerHTML = `The bearing has moved <b>${moved.toFixed(1)}°</b> since your LOBs. ${moved < 8 ? 'Wait for more change (speed up the sim if needed).' : 'Good time to drop the next LOB.'}`;
+            } else hint.innerHTML = spread >= GOOD_SPREAD_DEG
+                ? 'Good geometry. Build the AOP. More LOBs will tighten it further.'
+                : 'Enough LOBs, but the spread is small, so the AOP will be long and thin. Keep flying and add more, or fly closer.';
+        }
+
+        const est = document.querySelector('[data-live="est"]');
+        if (est) {
+            let html = '';
+            if (lobs.length >= (AOP_METHOD === 'legacy' ? MIN_LOBS : 2)) {
+                const f = computeFix(lobs);
+                if (!f.error) {
+                    const ok = aopPasses(f);
+                    html = `<div class="note ${ok ? '' : 'warn'}">AOP from these LOBs would be about <b class="mono">${fmtNm(f.radiusX)} × ${fmtNm(f.radiusY)} NM</b>. ${ok ? 'Within the 5 NM limit.' : 'Needs both axes under 5 NM.'}</div>`;
+                }
+            }
+            if (est.innerHTML !== html) est.innerHTML = html;
+        }
+
+        const coloc = document.querySelector('[data-live="coloc"]');
+        if (coloc) {
+            const near = state.emitters.filter(o => o.id !== em.id && o.inContact && em.inContact && Math.abs(((o.bearing - em.bearing + 540) % 360) - 180) < 1.5);
+            const parts = [];
+            if (em.identified) parts.push(`<b>E${em.num}</b> ${esc(em.radarKey)} → ${platformsFor(em.radarKey).map(p => esc(p.class)).join(', ') || 'unknown'}`);
+            near.forEach(o => parts.push(`<b>E${o.num}</b> is on nearly the same bearing${o.identified ? ` (${esc(o.radarKey)} → ${platformsFor(o.radarKey).map(p => esc(p.class)).join(', ')})` : ' (not yet identified)'}. Possibly the same platform.`));
+            const html = parts.length ? `<div class="note">${parts.join('<br>')}</div>` : '';
+            if (coloc.innerHTML !== html) coloc.innerHTML = html;
+        }
+    }
+
+    function renderProgress() {
+        const total = state.emitters.length;
+        const ided = state.emitters.filter(e => e.identified).length;
+        const aops = state.aops.length;
+        const good = state.aops.filter(aopPasses).length;
+        const labeled = state.aops.filter(a => a.correlation).length;
+        const stages = [
+            { n: 1, k: 'Identify', v: `${ided}/${total}`, done: total > 0 && ided === total, active: ided < total },
+            { n: 2, k: 'Locate', v: aops ? `${good}/${aops} in limits` : '0 AOPs', done: aops > 0 && good === aops, active: aops === 0 || good < aops },
+            { n: 3, k: 'Label', v: `${labeled}/${aops}`, done: aops > 0 && labeled === aops, active: aops > 0 && labeled < aops },
+            { n: 4, k: 'Export', v: state.exported ? 'done' : '', done: state.exported, active: false }
+        ];
+        let activeShown = false;
+        $('#progress').innerHTML = stages.map(s => {
+            const cls = s.done ? 'done' : (!activeShown && s.active ? (activeShown = true, 'active') : '');
+            return `<div class="pill ${cls}"><span class="n">${s.done ? '✓' : s.n}</span>${s.k}${s.v ? ` <b>${s.v}</b>` : ''}</div>`;
+        }).join('');
+    }
+
+    function guidance() {
+        if (!state.started) return { text: 'Enter your name to begin.' };
+        if (!state.emitters.length) return { text: 'Listening for signals… Emitters will appear in the list on the right.' };
+        const em = selected();
+        if (!em) return { text: 'Pick an emitter from the <b>Detected emitters</b> list on the right.' };
+        const tag = `<b>E${em.num}</b>`;
+        if (!em.identified) {
+            if (!em.inContact) return { kind: 'warn', text: `${tag} is out of range. Climb or fly toward its last bearing, or work another emitter.` };
+            return { text: `Identify ${tag}: click <b>Analyze signal</b> and measure its PRI and pulse width.` };
+        }
+        const platforms = platformsFor(em.radarKey);
+        const skip = platforms.length && platforms.every(p => p.affiliation !== 'hostile');
+        const lobs = lobsFor(em.id);
+        const aop = aopFor(em.id);
+        const others = state.emitters.filter(e => e.id !== em.id && !e.identified);
+        const nextOther = others.length ? `Select <b>E${others[0].num}</b> next.` : 'When the hostile platform is located and labeled, click <b>Finish &amp; export</b>.';
+        if (skip && !aop) return { kind: 'good', text: `${tag} is a friendly/neutral radar, so you don't need to locate it. ${nextOther}` };
+        if (!aop) {
+            if (lobs.length < MIN_LOBS) {
+                if (!em.inContact) return { kind: 'warn', text: `${tag} is out of range. Regain contact to take bearings.` };
+                if (!lobs.length) return { text: `Locate ${tag}: click <b>Drop LOB</b> to record the first bearing.` };
+                const moved = bearingSpread([...lobs.map(l => l.bearing), em.bearing]) - bearingSpread(lobs.map(l => l.bearing));
+                if (moved < 8) return { text: `Let the aircraft move so ${tag}'s bearing changes (only ${moved.toFixed(1)}° so far), then drop LOB ${lobs.length + 1}. Try <b>4×</b> sim speed.` };
+                return { text: `Bearing has shifted ${moved.toFixed(0)}°. Drop LOB ${lobs.length + 1} of ${MIN_LOBS} for ${tag}.` };
+            }
+            if (bearingSpread(lobs.map(l => l.bearing)) < MIN_SPREAD_DEG) return { kind: 'warn', text: `Your LOBs for ${tag} are nearly parallel. Keep flying and add another LOB before building the AOP.` };
+            return { text: `You have ${lobs.length} LOBs. Click <b>Build AOP</b> for ${tag}.` };
+        }
+        if (!aopPasses(aop)) return { kind: 'warn', text: `${tag}'s AOP is ${fmtNm(aop.radiusX)} × ${fmtNm(aop.radiusY)} NM. Both axes must be under ${AOP_LIMIT_NM} NM. Add more LOBs as the bearing changes, or fly closer, then <b>Rebuild</b>.` };
+        if (!aop.correlation) return { text: `Label ${tag}'s AOP: choose the platform class that carries <b>${esc(em.radarKey)}</b> (see step 4).` };
+        return { kind: 'good', text: `${tag} is complete. ${nextOther}` };
+    }
+
+    function renderGuide() {
+        const g = guidance();
+        const el = $('#guide');
+        el.classList.toggle('good', g.kind === 'good');
+        el.classList.toggle('warn', g.kind === 'warn');
+        $('#guide-icon').textContent = g.kind === 'good' ? '✓' : g.kind === 'warn' ? '!' : '→';
+        if ($('#guide-text').innerHTML !== g.text) $('#guide-text').innerHTML = g.text;
+    }
+
+    function renderHud() {
+        const o = state.ownship;
+        $('#hud-lat').textContent = toLat(o.y).toFixed(3) + ' N';
+        $('#hud-lon').textContent = toLon(o.x).toFixed(3) + ' E';
+        $('#hud-hdg').textContent = Math.round(o.heading).toString().padStart(3, '0') + '°';
+        $('#hud-spd').textContent = o.speedKnots + ' kt';
+        $('#hud-alt').textContent = o.altitude.toLocaleString() + ' ft';
+        $('#hud-time').textContent = fmtClock(state.ticks);
+    }
+
+    function renderFlight() {
+        const h = state.ownship.heading;
+        $('#hdg-needle').style.transform = `rotate(${h}deg)`;
+        const inp = $('#hdg-input');
+        if (document.activeElement !== inp) inp.value = Math.round(h) % 360;
+    }
+
+    // ===================================================================
+    // Signal analyzer
+    // ===================================================================
+    const scopeCanvas = $('#scope');
+    const an = {
+        em: null, profile: null,
+        mode: 'live', scale: 1, t0: 0,
+        clicks: [], hoverX: null,
+        msg: null, selected: null,
+        noiseSeed: 0, open: false, lastNow: 0
+    };
+
+    function openAnalyzer(id) {
+        const em = emitterById(id);
+        if (!em) return;
+        if (!em.inContact) return toast(`No signal from E${em.num} to analyze.`, 'bad');
+        an.em = em;
+        an.profile = RADAR_PROFILES[em.radarKey];
+        an.selected = null;
+        an.msg = null;
+        $('#an-title').innerHTML = `<span style="color: ${em.color}">E${em.num}</span>`;
+        $('#an-freq').textContent = an.profile.freq.toFixed(3);
+        $('#an-pri').value = '';
+        $('#an-pw').value = '';
+        setFeedback('');
+        openModal('analyzer-modal');
+        an.open = true;
+        requestAnimationFrame(() => { setScopeMode('live'); renderLibrary(); updateAnalyzerUI(); });
+    }
+
+    function closeAnalyzer() {
+        an.open = false;
+        closeModal('analyzer-modal');
+    }
+
+    function scopeWidth() { return scopeCanvas.getBoundingClientRect().width || 1000; }
+
+    function setScopeMode(mode) {
+        const W = scopeWidth();
+        const { pri, pw } = an.profile;
+        an.mode = mode;
+        an.clicks = [];
+        an.msg = null;
+        if (mode === 'live') {
+            an.scale = W / (3.2 * pri);
+        } else if (mode === 'pri') {
+            an.scale = W / (2.4 * pri);
+            an.t0 = -0.3 * pri;
+        } else {
+            an.scale = 0.45 * W / pw;
+            an.t0 = -((W / an.scale) - pw) / 2;
+        }
+        updateAnalyzerUI();
+    }
+
+    // Snap the cursor to the nearest pulse edge within a few pixels.
+    function snap(x) {
+        const { pri, pw } = an.profile;
+        const t = an.t0 + x / an.scale;
+        const k = Math.round(t / pri);
+        let best = null, bestD = 9;
+        for (let j = k - 1; j <= k + 1; j++) {
+            const edges = an.mode === 'pw' ? [j * pri, j * pri + pw] : [j * pri];
+            edges.forEach(te => {
+                const d = Math.abs((te - an.t0) * an.scale - x);
+                if (d < bestD) { bestD = d; best = te; }
+            });
+        }
+        return best != null ? { t: best, snapped: true } : { t, snapped: false };
+    }
+
+    function handleScopeClick(e) {
+        if (an.mode === 'live') {
+            an.msg = { type: 'bad', text: 'Choose <b>Measure PRI</b> or <b>Measure PW</b> first. The scope will freeze and zoom to fit.' };
+            return updateAnalyzerUI();
+        }
+        const r = scopeCanvas.getBoundingClientRect();
+        const s = snap(e.clientX - r.left);
+        if (an.clicks.length >= 2) an.clicks = [];
+        an.msg = null;
+        an.clicks.push(s.t);
+        if (an.clicks.length === 2) finishMeasurement();
+        updateAnalyzerUI();
+    }
+
+    function finishMeasurement() {
+        const d = Math.abs(an.clicks[1] - an.clicks[0]);
+        const { pri } = an.profile;
+        if (d < 1e-6) {
+            an.clicks = [];
+            an.msg = { type: 'bad', text: 'Both clicks landed on the same spot. Click two <b>different</b> edges.' };
+            return;
+        }
+        if (an.mode === 'pri') {
+            const ratio = d / pri;
+            if (ratio < 0.5) {
+                an.clicks = [];
+                an.msg = { type: 'bad', text: 'Those edges are closer together than one pulse interval. For PRI, click the <b>leading edge</b> of two <b>neighbouring pulses</b>, not both sides of one pulse.' };
+                return;
+            }
+            if (ratio > 1.5) {
+                an.clicks = [];
+                an.msg = { type: 'bad', text: `That spans about ${Math.round(ratio)} pulse intervals. Click the leading edges of two pulses that are <b>right next to each other</b>.` };
+                return;
+            }
+            $('#an-pri').value = d.toFixed(1);
+        } else {
+            $('#an-pw').value = fmtPw(d);
+        }
+        renderLibrary();
+    }
+
+    function readMeasured() {
+        const pri = parseFloat($('#an-pri').value);
+        const pw = parseFloat($('#an-pw').value);
+        return { pri: isNaN(pri) ? null : pri, pw: isNaN(pw) ? null : pw };
+    }
+
+    function updateAnalyzerUI() {
+        const { pri, pw } = readMeasured();
+        document.querySelectorAll('#scope-seg button').forEach(b => b.classList.toggle('on', b.dataset.mode === an.mode));
+        $('#card-pri').classList.toggle('active', an.mode === 'pri');
+        $('#card-pw').classList.toggle('active', an.mode === 'pw');
+        $('#card-pri').classList.toggle('done', pri != null);
+        $('#card-pw').classList.toggle('done', pw != null);
+        $('#card-pri .tick').classList.toggle('hidden', pri == null);
+        $('#card-pw .tick').classList.toggle('hidden', pw == null);
+
+        let instr, type = '';
+        if (an.msg) { instr = an.msg.text; type = an.msg.type; }
+        else if (an.mode === 'live') {
+            instr = pri == null ? 'This is the live pulse train. Click <b>Measure PRI</b> to freeze it and measure the time between pulses.'
+                : pw == null ? 'Now click <b>Measure PW</b> to zoom in on a single pulse.'
+                : 'Both measured. Pick the matching radar in the library below.';
+        } else if (an.mode === 'pri') {
+            instr = an.clicks.length === 0 ? '<b>PRI:</b> click the <b>leading (left) edge</b> of any pulse. The cursor snaps to edges.'
+                : an.clicks.length === 1 ? 'Now click the <b>leading edge of the next pulse</b>.'
+                : (type = 'ok', `PRI recorded: <b>${fmtPri(pri)} µs</b>. ${pw == null ? 'Next: click <b>Measure PW</b>.' : 'Now pick the matching radar below.'}`);
+        } else {
+            instr = an.clicks.length === 0 ? '<b>PW:</b> the scope is zoomed in on one pulse. Click its <b>left (rising) edge</b>.'
+                : an.clicks.length === 1 ? 'Now click the <b>right (falling) edge</b> of the same pulse.'
+                : (type = 'ok', `Pulse width recorded: <b>${fmtPw(pw)} µs</b>. ${pri == null ? 'Next: click <b>Measure PRI</b>.' : 'Now pick the matching radar below.'}`);
+        }
+        const box = $('#scope-instr');
+        box.className = `scope-instr ${type}`;
+        box.innerHTML = instr;
+
+        const ready = pri != null && pw != null && an.selected;
+        $('#btn-an-confirm').disabled = !ready;
+        if (!$('#an-feedback').dataset.sticky) {
+            setFeedback(pri == null || pw == null ? 'Measure PRI and PW, then choose a radar.' : !an.selected ? 'Click a radar in the library to select it.' : `Selected: ${an.selected}`);
+        }
+    }
+
+    function drawScope() {
+        const { ctx, w: W, h: H } = fitCanvas(scopeCanvas);
+        const { pri, pw } = an.profile;
+        const yb = H - 42, yt = 42;
+
+        ctx.fillStyle = '#05090d';
+        ctx.fillRect(0, 0, W, H);
+
+        // Time grid, labelled from the left edge
+        const span = W / an.scale;
+        const tick = niceStep(span / 8);
+        ctx.strokeStyle = '#122030';
+        ctx.fillStyle = '#5b6f84';
+        ctx.font = '11px ui-monospace, Menlo, Consolas, monospace';
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 1;
+        for (let v = 0; v <= span + 1e-9; v += tick) {
+            const x = Math.round(v * an.scale) + 0.5;
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H - 20); ctx.stroke();
+            const label = tick >= 1 ? v.toFixed(0) : v.toFixed(Math.min(3, Math.ceil(-Math.log10(tick))));
+            ctx.fillText(`${label} µs`, Math.min(W - 24, Math.max(24, x)), H - 6);
+        }
+        [yt, (yt + yb) / 2, yb].forEach(y => { ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); ctx.stroke(); });
+
+        // Noise floor (stable while frozen)
+        ctx.strokeStyle = 'rgba(61,220,132,.25)';
+        ctx.beginPath();
+        for (let x = 0; x <= W; x += 3) {
+            const n = Math.sin((x + an.noiseSeed) * 12.9898) * 43758.5453;
+            ctx.lineTo(x, yb - 2 - (n - Math.floor(n)) * 8);
+        }
+        ctx.stroke();
+
+        // Pulses
+        ctx.strokeStyle = '#3ddc84';
+        ctx.fillStyle = 'rgba(61,220,132,.12)';
+        ctx.lineWidth = 1.6;
+        ctx.shadowColor = 'rgba(61,220,132,.5)';
+        ctx.shadowBlur = 6;
+        for (let k = Math.floor(an.t0 / pri) - 1; ; k++) {
+            const xs = (k * pri - an.t0) * an.scale;
+            if (xs > W) break;
+            const wpx = Math.max(pw * an.scale, 1.5);
+            const xe = xs + wpx;
+            if (xe < 0) continue;
+            const rise = Math.min(wpx * 0.06, 5);
+            ctx.beginPath();
+            ctx.moveTo(xs, yb);
+            ctx.lineTo(xs + rise, yt);
+            if (wpx > 40) {
+                for (let x = xs + rise; x < xe - rise; x += 2) ctx.lineTo(x, yt + 4 + Math.sin(x * 0.35) * 3);
+            }
+            ctx.lineTo(xe - rise, yt);
+            ctx.lineTo(xe, yb);
+            ctx.fill();
+            ctx.stroke();
+        }
+        ctx.shadowBlur = 0;
+
+        const tx = t => (t - an.t0) * an.scale;
+
+        // Measurement span
+        if (an.mode !== 'live' && an.clicks.length) {
+            const x1 = tx(an.clicks[0]);
+            let x2 = null;
+            if (an.clicks.length === 2) x2 = tx(an.clicks[1]);
+            else if (an.hoverX != null) x2 = tx(snap(an.hoverX).t);
+            ctx.strokeStyle = '#3ec6ff';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(x1, 0); ctx.lineTo(x1, H - 20); ctx.stroke();
+            if (x2 != null) {
+                ctx.fillStyle = 'rgba(62,198,255,.14)';
+                ctx.fillRect(Math.min(x1, x2), 0, Math.abs(x2 - x1), H - 20);
+                ctx.beginPath(); ctx.moveTo(x2, 0); ctx.lineTo(x2, H - 20); ctx.stroke();
+                const dt = Math.abs(x2 - x1) / an.scale;
+                const label = `Δ ${an.mode === 'pri' ? fmtPri(dt) : fmtPw(dt)} µs`;
+                ctx.font = 'bold 14px ui-monospace, Menlo, Consolas, monospace';
+                const lw = ctx.measureText(label).width + 14;
+                const lx = Math.min(W - lw - 4, Math.max(4, (x1 + x2) / 2 - lw / 2));
+                ctx.fillStyle = 'rgba(5,9,13,.9)';
+                ctx.fillRect(lx, 8, lw, 22);
+                ctx.fillStyle = '#3ec6ff';
+                ctx.textAlign = 'left';
+                ctx.fillText(label, lx + 7, 24);
+            }
+        }
+
+        // Hover cursor
+        if (an.mode !== 'live' && an.hoverX != null && an.clicks.length < 2) {
+            const s = snap(an.hoverX);
+            const x = tx(s.t);
+            ctx.setLineDash([3, 4]);
+            ctx.strokeStyle = s.snapped ? '#ffb020' : 'rgba(230,237,243,.45)';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H - 20); ctx.stroke();
+            ctx.setLineDash([]);
+            if (s.snapped) {
+                ctx.fillStyle = '#ffb020';
+                ctx.beginPath(); ctx.moveTo(x, yt - 12); ctx.lineTo(x + 5, yt - 6); ctx.lineTo(x, yt); ctx.lineTo(x - 5, yt - 6); ctx.closePath(); ctx.fill();
+                ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'left';
+                ctx.fillText('edge', x + 8, yt - 4);
+            }
+        }
+
+        $('#scope-meta').textContent = `${an.mode === 'live' ? 'LIVE' : 'FROZEN'} · ${fmtTick(tick)} µs/div`;
+    }
+
+    function fmtTick(v) { return v >= 1 ? v.toFixed(0) : v.toPrecision(2); }
+
+    function scopeFrame(now) {
+        if (!an.open) return;
+        const dt = Math.min(0.1, (now - (an.lastNow || now)) / 1000);
+        an.lastNow = now;
+        if (an.mode === 'live') {
+            an.t0 += (scopeWidth() / an.scale) * 0.35 * dt;
+            an.noiseSeed = (an.noiseSeed + 7) % 10000;
+        }
+        drawScope();
+    }
+
+    function libMatch(p, measured) {
+        const f = an.profile.freq;
+        return {
+            freq: Math.abs(p.freq - f) <= LIB_TOL.freq,
+            pri: measured.pri == null ? null : Math.abs(p.pri - measured.pri) / p.pri <= LIB_TOL.pri,
+            pw: measured.pw == null ? null : Math.abs(p.pw - measured.pw) / p.pw <= LIB_TOL.pw
+        };
+    }
+
+    function renderLibrary() {
+        const measured = readMeasured();
+        const f = an.profile.freq;
+        let rows = Object.entries(RADAR_PROFILES).map(([name, p]) => {
+            const m = libMatch(p, measured);
+            return { name, p, m, score: (m.freq ? 1 : 0) + (m.pri ? 1 : 0) + (m.pw ? 1 : 0) };
+        });
+        if (ASSIST) rows.sort((a, b) => b.score - a.score || Math.abs(a.p.freq - f) - Math.abs(b.p.freq - f) || a.name.localeCompare(b.name));
+        else rows.sort((a, b) => a.p.freq - b.p.freq || a.name.localeCompare(b.name));
+
+        const cls = v => !ASSIST || v == null ? '' : v ? 'm-ok' : 'm-no';
+        const mark = v => !ASSIST || v == null ? '' : v ? ' ✓' : '';
+        $('#lib-body').innerHTML = rows.map(r => `
+            <tr data-name="${esc(r.name)}" class="${r.name === an.selected ? 'sel' : ''} ${ASSIST && r.score === 3 ? 'full' : ''}">
+                <td>${esc(r.name)}</td>
+                <td class="num ${cls(r.m.freq)}">${r.p.freq.toFixed(3)}${mark(r.m.freq)}</td>
+                <td class="num ${cls(r.m.pri)}">${r.p.pri}${mark(r.m.pri)}</td>
+                <td class="num ${cls(r.m.pw)}">${r.p.pw}${mark(r.m.pw)}</td>
+            </tr>`).join('');
+        $('#lib-hint').textContent = ASSIST
+            ? 'Green ✓ = within tolerance of your measurement. Rows sort by how many parameters match.'
+            : 'Sorted by frequency. Compare all three parameters.';
+        updateAnalyzerUI();
+    }
+
+    function setFeedback(text, type = '', sticky = false) {
+        const el = $('#an-feedback');
+        el.className = `feedback ${type}`;
+        el.innerHTML = text;
+        if (sticky) el.dataset.sticky = '1'; else delete el.dataset.sticky;
+    }
+
+    function confirmIdentification() {
+        const em = an.em;
+        const measured = readMeasured();
+        const name = an.selected;
+        if (!em || !name || measured.pri == null || measured.pw == null) return;
+        state.attempts[em.id] = (state.attempts[em.id] || 0) + 1;
+
+        if (name === em.radarKey) {
+            em.identified = true;
+            state.measurements[em.id] = { pri: measured.pri, pw: measured.pw, type: name, success: true, attempts: state.attempts[em.id] };
+            setFeedback(`✓ Correct: E${em.num} is a <b>${esc(name)}</b>.`, 'ok', true);
+            $('#btn-an-confirm').disabled = true;
+            toast(`E${em.num} identified: ${name}`, 'ok');
+            checkAutoId();
+            saveSession();
+            setTimeout(closeAnalyzer, 1100);
+            return;
+        }
+
+        const p = RADAR_PROFILES[name];
+        const m = libMatch(p, measured);
+        const why = [];
+        if (!m.freq) why.push(`frequency is ${p.freq.toFixed(3)} GHz, but the signal is ${an.profile.freq.toFixed(3)} GHz`);
+        if (!m.pri) why.push(`PRI is ${p.pri} µs, but you measured ${fmtPri(measured.pri)} µs`);
+        if (!m.pw) why.push(`PW is ${p.pw} µs, but you measured ${fmtPw(measured.pw)} µs`);
+        const text = why.length
+            ? `✕ Not ${esc(name)}: its ${why.join('; its ')}.`
+            : `✕ Not ${esc(name)}. Your measurements may be off. Re-measure PRI and PW and compare again.`;
+        setFeedback(text, 'bad', true);
+    }
+
+    // ===================================================================
+    // Reference, export, modals
+    // ===================================================================
+    function populateReference() {
+        $('#ref-platform-body').innerHTML = PLATFORM_LIBRARY.map(p =>
+            `<tr><td><b>${esc(p.class)}</b></td><td>${affTag(p.affiliation)}</td><td>${p.radars.map(esc).join('<br>')}</td></tr>`).join('');
+        $('#ref-radar-body').innerHTML = Object.entries(RADAR_PROFILES)
+            .sort((a, b) => a[1].freq - b[1].freq || a[0].localeCompare(b[0]))
+            .map(([n, p]) => `<tr><td>${esc(n)}</td><td class="num">${p.freq.toFixed(3)}</td><td class="num">${p.pri}</td><td class="num">${p.pw}</td></tr>`).join('');
+    }
+
+    function openExport() {
+        const ided = state.emitters.filter(e => e.identified).length;
+        const warnings = [];
+        if (!state.aops.length) warnings.push('You haven\'t built any AOPs. Your grade is based on your AOPs, so this will score 0.');
+        state.aops.forEach(a => {
+            const em = emitterById(a.emitterId);
+            if (!aopPasses(a)) warnings.push(`E${em.num}'s AOP is larger than ${AOP_LIMIT_NM} NM on at least one axis.`);
+            if (!a.correlation) warnings.push(`E${em.num}'s AOP has no platform label.`);
+        });
+        const unId = state.emitters.filter(e => !e.identified);
+        if (unId.length) warnings.push(`${unId.map(e => 'E' + e.num).join(', ')} ${unId.length > 1 ? 'are' : 'is'} still unidentified.`);
+
+        $('#export-body').innerHTML = `
+            <div class="stat-row">
+                <div class="stat"><div class="k">Identified</div><div class="v">${ided}/${state.emitters.length}</div></div>
+                <div class="stat"><div class="k">AOPs in limits</div><div class="v">${state.aops.filter(aopPasses).length}/${state.aops.length}</div></div>
+                <div class="stat"><div class="k">AOPs labeled</div><div class="v">${state.aops.filter(a => a.correlation).length}/${state.aops.length}</div></div>
+            </div>
+            ${state.aops.length ? `
+            <table class="export-table">
+                <thead><tr><th>Emitter</th><th>Radar</th><th>Label</th><th>Size (NM)</th><th></th></tr></thead>
+                <tbody>${state.aops.map(a => {
+                    const em = emitterById(a.emitterId);
+                    return `<tr>
+                        <td><span class="em-chip" style="--em: ${em.color}; background: ${em.color}">E${em.num}</span></td>
+                        <td>${em.identified ? esc(em.radarKey) : '<span class="muted">Unknown</span>'}</td>
+                        <td>${a.correlation ? esc(a.correlation) : '<span style="color: var(--warn)">None</span>'}</td>
+                        <td class="mono">${fmtNm(a.radiusX)} × ${fmtNm(a.radiusY)}</td>
+                        <td>${aopPasses(a) ? '<span class="chip ok">OK</span>' : '<span class="chip bad">Too large</span>'}</td>
+                    </tr>`;
+                }).join('')}</tbody>
+            </table>` : ''}
+            ${warnings.length ? `<div><b>Before you submit</b><ul class="warn-list">${warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>`
+                : `<div class="note">Everything looks complete.</div>`}
+            <p class="muted" style="margin: 0; font-size: 14px;">Operator: <b style="color: var(--text)">${esc(state.studentName)}</b>. The download is a <span class="mono">.json</span> file. Submit it as instructed by your instructor.</p>`;
+        openModal('export-modal');
+    }
+
+    function exportData() {
+        // Same schema as index.html's export, which autograder.html reads
+        const exportedAOPs = state.aops.map(a => ({
+            x: a.x, y: a.y,
+            lat: toLat(a.y).toFixed(5),
+            lon: toLon(a.x).toFixed(5),
+            sma_nm: parseFloat((a.radiusX / PX_PER_NM).toFixed(2)),
+            smi_nm: parseFloat((a.radiusY / PX_PER_NM).toFixed(2)),
+            rotation: a.rotation,
+            correlation: a.correlation,
+            emitter: `E${emitterById(a.emitterId).num}`
+        }));
+        const hostileTargets = SCENARIO_ENTITIES
+            .filter(e => e.affiliation === 'hostile')
+            .map(e => ({ id: e.id, name: e.name, lat: toLat(e.y).toFixed(5), lon: toLon(e.x).toFixed(5), radars: e.radars }));
+
+        const data = {
+            studentName: state.studentName,
+            timestamp: new Date().toISOString(),
+            simulator: 'simulator.html',
+            score: Object.keys(state.measurements).length,
+            userMeasurements: state.measurements,
+            aops: exportedAOPs,
+            groundTruth: hostileTargets
+        };
+
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `elint_grading_${state.studentName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+
+        state.exported = true;
+        saveSession();
+        closeModal('export-modal');
+        toast('Results file downloaded. Hand it in to your instructor.', 'ok');
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('open');
+        if (id === 'analyzer-modal') an.open = false;
+    }
+    const anyModalOpen = () => !!document.querySelector('.modal.open');
+
+    // ===================================================================
+    // Persistence (per-browser autosave so a refresh doesn't lose work)
+    // ===================================================================
+    function saveSession() {
+        if (!state.started) return;
+        try {
+            localStorage.setItem(SAVE_KEY, JSON.stringify({
+                savedAt: Date.now(),
+                studentName: state.studentName,
+                ownship: state.ownship,
+                ticks: state.ticks,
+                autopilot: state.autopilot,
+                emitters: state.emitters,
+                selectedId: state.selectedId,
+                measurements: state.measurements,
+                attempts: state.attempts,
+                lobs: state.lobs,
+                aops: state.aops,
+                autoIdUnlocked: state.autoIdUnlocked,
+                exported: state.exported
+            }));
+        } catch (e) { /* storage unavailable */ }
+    }
+
+    function loadSession() {
+        try { return JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) { return null; }
+    }
+
+    function clearSession() {
+        try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ }
+    }
+
+    function startMission(saved) {
+        if (saved) {
+            Object.assign(state, {
+                studentName: saved.studentName,
+                ownship: saved.ownship,
+                ticks: saved.ticks || 0,
+                emitters: saved.emitters || [],
+                selectedId: saved.selectedId,
+                measurements: saved.measurements || {},
+                attempts: saved.attempts || {},
+                lobs: saved.lobs || [],
+                aops: saved.aops || [],
+                autoIdUnlocked: !!saved.autoIdUnlocked,
+                exported: !!saved.exported
+            });
+            setAutopilot(saved.autopilot !== false);
+            $('#spd-slider').value = state.ownship.speedKnots;
+            $('#spd-val').textContent = state.ownship.speedKnots;
+            $('#alt-slider').value = state.ownship.altitude;
+            $('#alt-val').textContent = state.ownship.altitude.toLocaleString();
+        } else {
+            clearSession();
+            state.studentName = $('#name-input').value.trim();
+        }
+        state.started = true;
+        $('#operator').innerHTML = `Operator: <b>${esc(state.studentName)}</b>`;
+        closeModal('welcome-modal');
+        step();
+        saveSession();
+        toast(saved ? 'Session resumed.' : 'Mission started. Follow the Next step panel.', 'ok');
+    }
+
+    // ===================================================================
+    // Main loop
+    // ===================================================================
+    let lastNow = performance.now(), acc = 0, lastUi = 0, lastSave = 0;
+
+    function frame(now) {
+        const dt = Math.min(now - lastNow, 250);
+        lastNow = now;
+        if (state.started && state.timeScale > 0) {
+            acc += dt / TICK_MS * state.timeScale;
+            let n = 0;
+            while (acc >= 1 && n < 400) { step(); acc -= 1; n++; }
+            if (n >= 400) acc = 0;
+        }
+        drawMap();
+
+        const key = uiKey();
+        if (key !== lastKey) {
+            lastKey = key;
+            renderEmitterList();
+            renderWorkbench();
+            renderProgress();
+            updateLive();
+        }
+        if (now - lastUi > 150) {
+            lastUi = now;
+            updateLive();
+            renderGuide();
+            renderHud();
+            renderFlight();
+        }
+        if (state.started && now - lastSave > 5000) { lastSave = now; saveSession(); }
+        if (an.open) scopeFrame(now);
+        requestAnimationFrame(frame);
+    }
+
+    // ===================================================================
+    // Wiring
+    // ===================================================================
+    function init() {
+        populateReference();
+
+        // Welcome
+        const nameInput = $('#name-input');
+        nameInput.addEventListener('input', () => { $('#btn-start').disabled = !nameInput.value.trim(); });
+        nameInput.addEventListener('keydown', e => { if (e.key === 'Enter' && nameInput.value.trim()) startMission(null); });
+        $('#btn-start').addEventListener('click', () => startMission(null));
+        const saved = loadSession();
+        if (saved && saved.studentName) {
+            $('#resume-box').classList.remove('hidden');
+            $('#resume-text').innerHTML = `Saved session for <b>${esc(saved.studentName)}</b> from ${new Date(saved.savedAt).toLocaleString()}.`;
+            $('#btn-resume').addEventListener('click', () => startMission(saved));
+        }
+        setTimeout(() => nameInput.focus(), 50);
+
+        // Top bar
+        $('#btn-help').addEventListener('click', () => openModal('help-modal'));
+        $('#btn-reference').addEventListener('click', () => openModal('reference-modal'));
+        $('#btn-export').addEventListener('click', () => { if (state.started) openExport(); });
+        $('#btn-download').addEventListener('click', exportData);
+
+        document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeModal(b.closest('.modal').id)));
+        document.querySelectorAll('.modal').forEach(m => m.addEventListener('mousedown', e => {
+            if (e.target === m && m.id !== 'welcome-modal') closeModal(m.id);
+        }));
+
+        $('#ref-tabs').addEventListener('click', e => {
+            const b = e.target.closest('button');
+            if (!b) return;
+            document.querySelectorAll('#ref-tabs button').forEach(x => x.classList.toggle('on', x === b));
+            $('#ref-platforms').classList.toggle('hidden', b.dataset.tab !== 'platforms');
+            $('#ref-radars').classList.toggle('hidden', b.dataset.tab !== 'radars');
+        });
+
+        // Flight
+        $('#btn-autopilot').addEventListener('click', () => {
+            setAutopilot(!state.autopilot);
+            toast(state.autopilot ? 'Autopilot on: orbiting the operating area.' : 'Autopilot off: steer with the heading controls.');
+        });
+        $('#hdg-left').addEventListener('click', () => setHeading(state.ownship.heading - 15, true));
+        $('#hdg-right').addEventListener('click', () => setHeading(state.ownship.heading + 15, true));
+        $('#hdg-input').addEventListener('change', e => setHeading(parseFloat(e.target.value) || 0, true));
+        const dial = $('#hdg-dial');
+        let dragging = false;
+        const dialSet = e => {
+            const r = dial.getBoundingClientRect();
+            setHeading(Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2)) * 180 / Math.PI + 90, true);
+        };
+        dial.addEventListener('pointerdown', e => { dragging = true; dial.setPointerCapture(e.pointerId); dialSet(e); });
+        dial.addEventListener('pointermove', e => { if (dragging) dialSet(e); });
+        dial.addEventListener('pointerup', () => { dragging = false; });
+        $('#spd-slider').addEventListener('input', e => {
+            state.ownship.speedKnots = parseInt(e.target.value, 10);
+            $('#spd-val').textContent = state.ownship.speedKnots;
+        });
+        $('#alt-slider').addEventListener('input', e => {
+            state.ownship.altitude = parseInt(e.target.value, 10);
+            $('#alt-val').textContent = state.ownship.altitude.toLocaleString();
+        });
+
+        // Sim speed + zoom
+        $('#time-seg').addEventListener('click', e => {
+            const b = e.target.closest('button');
+            if (!b) return;
+            state.timeScale = parseInt(b.dataset.ts, 10);
+            document.querySelectorAll('#time-seg button').forEach(x => x.classList.toggle('on', x === b));
+        });
+        $('#zoom-in').addEventListener('click', () => setZoom(state.zoom * 1.4));
+        $('#zoom-out').addEventListener('click', () => setZoom(state.zoom / 1.4));
+        $('#zoom-reset').addEventListener('click', () => setZoom(1));
+        mapCanvas.addEventListener('wheel', e => { e.preventDefault(); setZoom(state.zoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15)); }, { passive: false });
+        mapCanvas.addEventListener('click', handleMapClick);
+
+        // Sidebar actions
+        const sidebar = document.querySelector('.sidebar');
+        sidebar.addEventListener('click', e => {
+            const t = e.target.closest('[data-action]');
+            if (!t || t.tagName === 'SELECT') return;
+            const id = t.dataset.id;
+            switch (t.dataset.action) {
+                case 'select': selectEmitter(id); break;
+                case 'toggle-hide': {
+                    e.stopPropagation();
+                    const em = emitterById(id);
+                    em.hidden = !em.hidden;
+                    break;
+                }
+                case 'analyze': openAnalyzer(id); break;
+                case 'drop-lob': dropLob(id); break;
+                case 'del-lob': deleteLob(t.dataset.lob); break;
+                case 'clear-lobs':
+                    if (confirm(`Delete all LOBs for E${emitterById(id).num}?`)) clearLobs(id);
+                    break;
+                case 'build-aop': buildAop(id); break;
+                case 'del-aop':
+                    if (confirm(`Delete the AOP for E${emitterById(id).num}?`)) deleteAop(id);
+                    break;
+            }
+        });
+        sidebar.addEventListener('change', e => {
+            if (e.target.dataset.action === 'correlate') setCorrelation(e.target.dataset.id, e.target.value);
+        });
+
+        // Analyzer
+        $('#scope-seg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setScopeMode(b.dataset.mode); });
+        $('#btn-measure-pri').addEventListener('click', () => setScopeMode('pri'));
+        $('#btn-measure-pw').addEventListener('click', () => setScopeMode('pw'));
+        scopeCanvas.addEventListener('mousemove', e => { an.hoverX = e.clientX - scopeCanvas.getBoundingClientRect().left; });
+        scopeCanvas.addEventListener('mouseleave', () => { an.hoverX = null; });
+        scopeCanvas.addEventListener('click', handleScopeClick);
+        ['#an-pri', '#an-pw'].forEach(s => $(s).addEventListener('input', renderLibrary));
+        $('#lib-body').addEventListener('click', e => {
+            const tr = e.target.closest('tr');
+            if (!tr) return;
+            an.selected = tr.dataset.name;
+            setFeedback('');
+            document.querySelectorAll('#lib-body tr').forEach(r => r.classList.toggle('sel', r === tr));
+            updateAnalyzerUI();
+        });
+        $('#btn-an-confirm').addEventListener('click', confirmIdentification);
+
+        // Keyboard
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                const open = [...document.querySelectorAll('.modal.open')].filter(m => m.id !== 'welcome-modal').pop();
+                if (open) closeModal(open.id);
+                return;
+            }
+            if (!state.started || anyModalOpen()) return;
+            if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+            const k = e.key.toLowerCase();
+            if (/^[1-9]$/.test(k)) { const em = state.emitters[parseInt(k, 10) - 1]; if (em) selectEmitter(em.id); }
+            else if (k === 'l' && state.selectedId) dropLob(state.selectedId);
+            else if (k === 'a' && state.selectedId) { const em = selected(); if (em && !em.identified) openAnalyzer(em.id); }
+            else if (k === 'b' && state.selectedId) buildAop(state.selectedId);
+            else if (k === '+' || k === '=') setZoom(state.zoom * 1.4);
+            else if (k === '-') setZoom(state.zoom / 1.4);
+            else if (k === ' ') {
+                e.preventDefault();
+                const target = state.timeScale === 0 ? '1' : '0';
+                document.querySelector(`#time-seg button[data-ts="${target}"]`).click();
+            }
+        });
+
+        window.addEventListener('beforeunload', e => {
+            if (!state.started) return;
+            saveSession();
+            if (!state.exported && (state.lobs.length || state.aops.length)) { e.preventDefault(); e.returnValue = ''; }
+        });
+
+        renderFlight();
+        requestAnimationFrame(frame);
+    }
+
+    init();
+})();
+</script>
+</body>
+</html>
